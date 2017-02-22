@@ -12,12 +12,12 @@
 #define DRV_SHIM_PORT PORTB
 #define DRV_SHIM_DDR DDRB
 
-#define WH1_1 0
-#define WH1_2 1
-#define WH2_1 2
-#define WH2_2 3
-#define WH3_1 4
-#define WH3_2 5
+#define WH1_C 0
+#define WH1_D 1
+#define WH2_C 2
+#define WH2_D 3
+#define WH3_C 4
+#define WH3_D 5
 #define SHIM1 1
 #define SHIM2 2
 #define SHIM3 3
@@ -35,41 +35,46 @@ void setSHIMfreq(int SHIMn, float speed)
 
 }
 
-void wheel_run(int driver_number, float speed)
+void wheel_run(float speed1, float speed2, float speed3)
 {
-	int WHCn, WHDn, SHIMn;
 
-	switch (driver_number)
+
+	if (speed1 > 0) // TURN RIGHT
 	{
-		case 1:
-			WHCn = WH1_1;
-			WHDn = WH1_2;
-			SHIMn = SHIM1;
-			break;
-		case 2:
-			WHCn = WH2_1;
-			WHDn = WH2_2;
-			SHIMn = SHIM2;
-			break;
-		case 3:
-			WHCn = WH3_1;
-			WHDn = WH3_2;
-			SHIMn = SHIM3;
-			break;
+		DRV_PORT |= (1 << WH1_C);
+		DRV_PORT |= (0 << WH1_D);
+	}
+	else		    // TURN LEFT
+	{
+		DRV_PORT |= (0 << WH1_C);
+		DRV_PORT |= (1 << WH1_D);
 	}
 
-	if (speed > 0) // TURN RIGHT
+	if (speed2 > 0) // TURN RIGHT
 	{
-		DRV_PORT |= (1 << WHCn);
-		DRV_PORT |= (0 << WHDn);
+		DRV_PORT |= (1 << WH2_C);
+		DRV_PORT |= (0 << WH2_D);
 	}
-	if (speed < 0) // TURN LEFT
+	else		    // TURN LEFT
 	{
-		DRV_PORT |= (0 << WHCn);
-		DRV_PORT |= (1 << WHDn);
+		DRV_PORT |= (0 << WH2_C);
+		DRV_PORT |= (1 << WH2_D);
+	}
+	if (speed3 > 0) // TURN RIGHT
+	{
+		DRV_PORT |= (1 << WH3_C);
+		DRV_PORT |= (0 << WH3_D);
+	}
+	else		    // TURN LEFT
+	{
+		DRV_PORT |= (0 << WH3_C);
+		DRV_PORT |= (1 << WH3_D);
 	}
 
-	DRV_SHIM_PORT |= (1 << SHIMn);
+	OCR1A = (int)(speed1 * 65535);
+	OCR1B = (int)(speed2 * 65535);
+	OCR1C = (int)(speed3 * 65535);
+
 }
 
 /*float get_wheel_speed()
@@ -77,3 +82,7 @@ void wheel_run(int driver_number, float speed)
 
 	return globalWheelSpeed[3];
 }*/
+
+
+
+

@@ -1,3 +1,4 @@
 #define presc		1024	//Предделитель
 
-void	timer_init(void);
+void	timer0_init(void);
+void	timer1_init(void);
