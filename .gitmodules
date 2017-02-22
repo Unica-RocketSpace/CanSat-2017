@@ -1,0 +1,3 @@
+[submodule "src-onboard_ATmega128/librscs"]
+	path = src-onboard_ATmega128/librscs
+	url = ../../cansat-rsce/librscs.git
