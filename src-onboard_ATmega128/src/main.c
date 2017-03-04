@@ -7,16 +7,11 @@
 #include <rscs/uart.h>
 #include <rscs/stdext/stdio.h>
 #include <avr/io.h>
-#include <math.h>
 
 #include "timer.h"
-#include "globals.h"
 #include "radio_transmitter.h"
-#include "sensors_poll.h"
-#include "ADXL345.h"
-
-#include "wheel_control.h"
-#include "servo_control.h"
+#include "kinematic_unit.h"
+#include "dynamic_unit.h"
 
 
 int main()
@@ -41,6 +36,8 @@ int main()
 	stdout = uart0stream;
 	printf("%s", "fdgdfg");*/
 
+
+
 	timer0_init();
 	timer1_init();
 	wheel_init();
@@ -53,6 +50,12 @@ int main()
 	return 0;
 }
 
+
+
+
+
+
+/*
 ISR(TIMER0_COMP_vect)
 {
 	ADXL345_GetGXYZ(&packet.accelX, &packet.accelY, &packet.accelZ, &STATE.aRawX, &STATE.aRawY, &STATE.aRawZ);
@@ -65,4 +68,4 @@ ISR(TIMER0_COMP_vect)
 	setServoCosAngle();
 	return 0;
 }
-
+*/

@@ -10,10 +10,14 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include "../librscs/rscs/uart.h"
+
 #include "radio_transmitter.h"
 
+/*
 uint8_t packet_size = sizeof(packet);
 uint8_t * packet_address = (uint8_t *)&packet;
+
 
 uint16_t count_CS()
 {
@@ -26,4 +30,16 @@ uint16_t count_CS()
 	}
 
 	return CS;
+}*/
+
+
+void transmitionInit()
+{
+
+}
+
+
+void sendDataPacket()
+{
+
 }

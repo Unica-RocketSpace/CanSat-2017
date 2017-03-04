@@ -3,11 +3,10 @@
 #include <avr/interrupt.h>
 
 #include "timer.h"
-#include "wheel_control.h"
 
-uint8_t cntr;
 
-void timer0_init(void)
+
+void timer0_init()
 {
    //Инициируем регистр управления таймером
    TCCR0 =	(0 << FOC0 ) |	//Включает принудительное внешнее сравнение
@@ -19,12 +18,12 @@ void timer0_init(void)
 		   (1 << CS01 ) |
 		   (1 << CS00 );
 
-   TCNT0 = 0x00;		//Сбрасываем таймер на 0
-   OCR0  = 255;			//Номер такта, при котором будет срабатывать прерывание
-   //TIMSK |= (1 << OCIE0);		//Разрешает прерывания по сравнению
+   TCNT0 = 0x00;			//Сбрасываем таймер на 0
+   OCR0  = 255;				//Номер такта, при котором будет срабатывать прерывание
+   //TIMSK |= (1 << OCIE0);	//Разрешает прерывания по сравнению
 }
 
-void timer1_init(void)
+void timer1PWMInit()
 {
 	TCCR1A =	(1 << COM1A1) |
 				(0 << COM1A0) |
@@ -48,11 +47,4 @@ void timer1_init(void)
 	//TIMSK |= (1 << TICIE1) | (1 << OCIE1A) | (1 << OCIE1B);
 	//ETIMSK |= (1 << OCIE1C);
 }
-
-
-ISR(TIMER2_COMP_vect)
-{
-
-}
-
 

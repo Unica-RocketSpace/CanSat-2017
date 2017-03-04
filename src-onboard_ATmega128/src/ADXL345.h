@@ -8,7 +8,6 @@
 #ifndef ADXL345_H_
 #define ADXL345_H_
 
-#include <rscs/spi.h>
 #include <stdbool.h>
 
 /* Команды на чтение и запись */

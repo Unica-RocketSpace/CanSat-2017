@@ -5,22 +5,16 @@
  *      Author: RaKetov
  */
 
-#include "ADXL345.h"
-#include <rscs/spi.h>
 #include <avr/io.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include "../librscs/rscs/spi.h"
+#include "ADXL345.h"
 
 char selectedRange     = 0;
 char fullResolutionSet = 0;
-
-
-//ИНИЦИАЛИЗАЦИЯ ШИНЫ SPI (временно)
-rscs_spi_bus_t spi1_;
-rscs_spi_bus_t * spi1 = &spi1_;
-
 
 
 /*Управление линией CS ADXL345*/
@@ -39,8 +33,8 @@ uint8_t ADXL345_GetRegisterValue(uint8_t registerAddress)
 	registerAddress = ADXL345_SPI_READ | registerAddress;
 
 	ADXL345_CS_State(0);
-	rscs_spi_write(spi1, &registerAddress, 1);
-	rscs_spi_read(spi1, &data, 1, 0);
+	rscs_spi_write(&registerAddress, 1);
+	rscs_spi_read(&data, 1, 0);
 	ADXL345_CS_State(1);
 
     return data;
@@ -54,7 +48,7 @@ void ADXL345_SetRegisterValue(uint8_t registerAddress, uint8_t registerValue)
 	dataBuffer[1] = registerValue;
 
 	ADXL345_CS_State(0);
-	rscs_spi_write(spi1, dataBuffer, 2);
+	rscs_spi_write(dataBuffer, 2);
 	ADXL345_CS_State(1);
 }
 
@@ -81,7 +75,7 @@ char ADXL345_Init()
 								ADXL345_SPI_WRITE | ADXL345_DATA_FORMAT,	ADXL345_DATA_FORMAT_DATA,
 								ADXL345_SPI_WRITE | ADXL345_FIFO_CTL,		ADXL345_FIFO_CTL_DATA		};
 
-    rscs_spi_write(spi1, writeBuffer, 18);
+    rscs_spi_write(writeBuffer, 18);
 
     return status;
 }
@@ -115,8 +109,8 @@ void ADXL345_GetXYZ(uint16_t* xData, uint16_t* yData, uint16_t* zData)
     firstRegAddress = ADXL345_SPI_READ | ADXL345_SPI_MB | firstRegAddress;
 
 	ADXL345_CS_State(0);
-	rscs_spi_write(spi1, &firstRegAddress, 1);
-	rscs_spi_read(spi1, readBuffer, 6, 0);
+	rscs_spi_write(&firstRegAddress, 1);
+	rscs_spi_read(readBuffer, 6, 0);
 	ADXL345_CS_State(1);
 
 	*xData = (readBuffer[1] << 8) + readBuffer[0];	//X-axis's output binary data

@@ -8,7 +8,8 @@
 #ifndef RADIO_TRANSMITTER_H_
 #define RADIO_TRANSMITTER_H_
 
-extern uint8_t packet_size;
+//extern uint8_t packet_size;
+
 
 #pragma pack(push,1)
 typedef struct
@@ -30,7 +31,21 @@ typedef struct
 }package;
 #pragma pack(pop)
 
-extern package packet;			//name of package
-extern uint8_t* packet_address;	//address of package
+
+//extern package packet;			//name of package
+//extern uint8_t* packet_address;	//address of package
+
+
+
+//ИНИЦИАЛИЗИРУЕТ ПРОЦЕСС ПЕРЕДАЧИ ДАННЫХ
+
+void transmitionInit();
+
+
+//ОТПРАВЛЯЕТ ПАКЕТ ДАННЫХ ТЕЛЕМЕТРИИ
+
+void sendDataPacket();
+
+
 
 #endif /* RADIO_TRANSMITTER_H_ */
