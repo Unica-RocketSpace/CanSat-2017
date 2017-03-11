@@ -8,7 +8,7 @@
 #include "../librscs/rscs/ds18b20.h"	//ДРАЙВЕР ДАТЧИКА ТЕМПЕРАТУРЫ DS18B20
 //#include "../librscs/rscs/bmp180.h"	//ДРАЙВЕР ДАТЧИКА ДАВЛЕНИЯ BMP180
 
-#include "ADXL345.h"					//ДРАЙВЕР АКСЕЛЕРОМЕТРА	ADXL345
+//#include "ADXL345.h"					//ДРАЙВЕР АКСЕЛЕРОМЕТРА	ADXL345
 #include "MPU9255.h"					//ДРАЙВЕР ГИРОСКОПА, АКСЕЛЕРОМЕТРА и КОМПАСА (MPU9255)
 #include "kinematic_unit.h"
 

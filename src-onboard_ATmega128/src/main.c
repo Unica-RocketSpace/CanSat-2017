@@ -52,7 +52,7 @@ int main()
 		uint8_t data1[12] = {0};
 		float data2[6] = {0};
 
-		/*e = MPU9255_accel_gyro_data(data1, data2);
+		e = MPU9255_accel_gyro_data(data1, data2);
 		printf("\nAcceleromer (error: %d)\n", e);
 		for (int i = 0; i < 3; i++)
 		{
@@ -62,7 +62,7 @@ int main()
 		for (int i = 3; i < 6; i++)
 		{
 			printf("data[%d]: %d\n",i, (long)data2[i]);
-		}*/
+		}
 
 		e = MPU9255_kompas_data(data1, data2);
 		printf("Kompas (error: %d)\n", e);
@@ -74,31 +74,5 @@ int main()
 		_delay_ms(2000);
 	}
 
-	while(1)
-	{
-		uint8_t data1[12] = {0};
-
-		rscs_e e;
-		e = MPU9255_data_read(GYRO_AND_ACCEL, data1);
-
-		for (int i = 0; i < sizeof(data1); i++)
-		{
-			printf("data[%d]: %d, error: %d\n",i, data1[i], e);
-		}
-
-		PORTB ^= (1 << 5);
-		_delay_ms(2000);
-
-	uint8_t data2[12] = {0};
-		MPU9255_data_read(GYRO_AND_ACCEL, data2);
-
-		for (int i = 0; i < sizeof(data2); i++)
-		{
-			printf("data[%d]: %d\n",i, data2[i]);
-		}
-
-		PORTB ^= (1 << 5);
-		_delay_ms(2000);
-	}
 	return 0;
 }

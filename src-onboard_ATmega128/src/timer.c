@@ -5,7 +5,7 @@
 #include "timer.h"
 
 
-
+/*
 void timer0_init()
 {
    //Инициируем регистр управления таймером
@@ -48,3 +48,4 @@ void timer1PWMInit()
 	//ETIMSK |= (1 << OCIE1C);
 }
 
+*/

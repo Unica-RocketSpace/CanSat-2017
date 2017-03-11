@@ -28,6 +28,9 @@ rscs_e MPU9255_write_regiter(MPU9255_address adr, uint8_t reg_address, uint8_t d
 rscs_e MPU9255_data_read(MPU9255_address address, uint8_t *data_read);		//чтение данных с MPU9255 или магнитометра
 rscs_e MPU9255_data(MPU9255_address address, uint8_t * data_read, float * data);
 
+rscs_e MPU9255_accel_gyro_data(uint8_t * data_read, float * data);
+rscs_e MPU9255_kompas_data(uint8_t * data_read, float * data);
+
 void MPU9255_init();		//initialisation of the I2C wire
 
 
