@@ -15,7 +15,6 @@
 float WheelSpeed_current = 0;
 
 
-
 void dynamicInit()
 {
 
@@ -62,5 +61,7 @@ void setWheelSpeed(float WheelSpeed)
 
 void setServoAngle(float ServoAngle)
 {
-
+	if (ServoAngle > MAX_SERVO_ANGLE) ServoAngle = MAX_SERVO_ANGLE;
+	if (ServoAngle > MIN_SERVO_ANGLE) ServoAngle = MIN_SERVO_ANGLE;
+	SERVO_ANGLE_REG = 3277 * ((ServoAngle - MIN_SERVO_ANGLE) / (MAX_SERVO_ANGLE - MIN_SERVO_ANGLE) + 1);
 }

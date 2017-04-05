@@ -7,8 +7,9 @@
 #include <rscs/uart.h>
 #include <rscs/i2c.h>
 #include <rscs/spi.h>
-
+#include <rscs/timeservice.h>
 #include <rscs/stdext/stdio.h>
+
 #include <avr/io.h>
 #include <util/delay.h>
 
@@ -18,18 +19,14 @@
 #include "dynamic_unit.h"
 #include "MPU9255.h"
 
+
 void init_hw(void)
 {
-	// настраиваем printf на уарт0
-	rscs_uart_bus_t * uart0 = rscs_uart_init(RSCS_UART_ID_UART0,
-			RSCS_UART_FLAG_ENABLE_TX /*| RSCS_UART_FLAG_BUFFER_TX*/);
-	rscs_uart_set_baudrate(uart0, 9600);
-	rscs_uart_set_character_size(uart0, 8);
-	rscs_uart_set_parity(uart0, RSCS_UART_PARITY_NONE);
-	rscs_uart_set_stop_bits(uart0, RSCS_UART_STOP_BITS_ONE);
 
+/*	// настраиваем printf на уарт0
 	FILE * uart_std = rscs_make_uart_stream(uart0);
 	stdout = uart_std;
+*/
 
 	// настраиваем i2c, spi и прочее
 	rscs_i2c_init();
@@ -37,7 +34,10 @@ void init_hw(void)
 
 	MPU9255_init();
 
-	//rscs_spi_init();
+	rscs_spi_init();
+	rscs_time_init();
+
+	transmition_init();
 }
 
 int main()
@@ -45,33 +45,36 @@ int main()
 
 	DDRB = (1 << 5);
 	init_hw();
+	set_ISC();
 
 	while(1)
 	{
-		rscs_e e;
-		uint8_t data1[12] = {0};
-		float data2[6] = {0};
+		//rscs_e e;
+		//uint8_t data1[12] = {0};
+		//float data2[6] = {0};
+		int16_t kompas_data[3] = {0};
 
-		e = MPU9255_accel_gyro_data(data1, data2);
+		/*e = MPU9255_accel_gyro_data(data1, data2);
 		printf("\nAcceleromer (error: %d)\n", e);
 		for (int i = 0; i < 3; i++)
 		{
-			printf("data[%d]: %d\n",i, (long)data2[i]);
+			printf("data[%d]: %ld\n",i, (long)data2[i]);
 		}
 		printf("Gyroscope (error: %d)\n", e);
 		for (int i = 3; i < 6; i++)
 		{
-			printf("data[%d]: %d\n",i, (long)data2[i]);
-		}
+			printf("data[%d]: %ld\n",i, (long)data2[i]);
+		}*/
 
-		e = MPU9255_kompas_data(data1, data2);
-		printf("Kompas (error: %d)\n", e);
+		/*e = MPU9255_kompas_data(kompas_data);
+		printf("Kompas (error: %d)\n", e);*/
 		for (int i = 0; i < 3/*sizeof(data1)*/; i++)
 		{
-			printf("data[%d]: %d\n",i, (long)data2[i]);
+			//printf("data[%d]: %ld\n",i, (long)data2[i]);
+			printf("data[%d]: %d\n",i, kompas_data[i]);
 		}
 
-		_delay_ms(2000);
+		_delay_ms(500);
 	}
 
 	return 0;

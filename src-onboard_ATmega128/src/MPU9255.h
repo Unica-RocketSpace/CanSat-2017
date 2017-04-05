@@ -17,7 +17,7 @@
 typedef enum
 {
 	GYRO_AND_ACCEL = 0b1101000,
-	KOMPASS = 0b0001100,
+	COMPASS = 0b0001100,
 
 }MPU9255_address;
 
@@ -25,11 +25,12 @@ typedef enum
 rscs_e MPU9255_read_register(MPU9255_address adr, uint8_t reg_address, uint8_t *data_read, uint8_t n_read);	//I2C read-write
 rscs_e MPU9255_write_regiter(MPU9255_address adr, uint8_t reg_address, uint8_t data);					//I2C multiple write
 
-rscs_e MPU9255_data_read(MPU9255_address address, uint8_t *data_read);		//чтение данных с MPU9255 или магнитометра
-rscs_e MPU9255_data(MPU9255_address address, uint8_t * data_read, float * data);
+rscs_e MPU9255_read_imu(int16_t * raw_accel_XYZ, int16_t * raw_gyro_XYZ);	//чтение данных с акселерометра и гироскопа
+rscs_e MPU9255_read_compass(int16_t * raw_compass_XYZ);					//чтение данных с магнитометра
 
-rscs_e MPU9255_accel_gyro_data(uint8_t * data_read, float * data);
-rscs_e MPU9255_kompas_data(uint8_t * data_read, float * data);
+rscs_e MPU9255_recalc_accel(int16_t * raw_accel_XYZ, float * accel_XYZ);	//перевод показаний акселерометра в единицы g
+rscs_e MPU9255_recalc_gyro(int16_t * raw_gyro_XYZ, float * gyro_XYZ);		//перевод показаний гироскопа в единицы dps
+rscs_e MPU9255_recalc_compass(int16_t * raw_compass_XYZ, float * compass_XYZ);
 
 void MPU9255_init();		//initialisation of the I2C wire
 

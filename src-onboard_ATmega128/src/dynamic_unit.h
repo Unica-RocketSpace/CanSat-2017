@@ -9,6 +9,8 @@
  * ИСПОЛНИТЕЛЬНЫМИ ОРГАНАМИ АППАРАТА
  */
 
+#include <math.h>
+
 #ifndef DYNAMIC_UNIT_H_
 #define DYNAMIC_UNIT_H_
 
@@ -17,6 +19,10 @@
 
 #define WHEEL_SPEED_REG		OCR1A	//регистр ШИМ, управляющий двигателем
 #define MAX_WHEEL_SPEED		200
+
+#define SERVO_ANGLE_REG		OCR1B
+#define MIN_SERVO_ANGLE		-(M_PI * 4 / 9)
+#define MAX_SERVO_ANGLE		(M_PI * 4 / 9)
 
 #define DRV_PORT PORTC
 #define DRV_DDR DDRC

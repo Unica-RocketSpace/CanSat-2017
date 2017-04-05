@@ -8,43 +8,50 @@
 #ifndef RADIO_TRANSMITTER_H_
 #define RADIO_TRANSMITTER_H_
 
-//extern uint8_t packet_size;
-
+extern rscs_uart_bus_t * uart0;
 
 #pragma pack(push,1)
 typedef struct
 {
+	uint16_t marker;	//marker
+
 	uint16_t number;	//the number of packet
+
 	uint16_t pressure1;	//pressure data 1
 	uint16_t pressure2;	//pressure data 2
+
 	uint16_t temp1;		//temperature data 1
 	uint16_t temp2;		//temperature data 2
-	uint16_t timeH;		//sending time (high register, uses TimeServise)
-	uint16_t timeL;		//sending time (low register, uses TimeServise)
-	uint16_t accelX;	//accelerometer raw data (X-axis)
-	uint16_t accelY;	//accelerometer raw data (Y-axis)
-	uint16_t accelZ;	//accelerometer raw data (Z-axis)
-	//uint16_t gyro		//gyro data ?????????????????????
+
+	uint16_t aXYZ[3];	//accelerometer raw data
+	uint16_t gXYZ[3];	//gyro raw data
+	uint16_t cXYZ[3];	//compass raw data
+
+	uint32_t time;		//sending time
+
 	uint8_t state;		//condition of the device
 	uint16_t CS;		//control summ (CS) for checking packages on the Earth
 
 }package;
 #pragma pack(pop)
 
-
-//extern package packet;			//name of package
-//extern uint8_t* packet_address;	//address of package
+extern package PACKAGE;				//name of package
 
 
 
 //ИНИЦИАЛИЗИРУЕТ ПРОЦЕСС ПЕРЕДАЧИ ДАННЫХ
 
-void transmitionInit();
+void transmition_init();
 
+//ЗАПОЛНЯЕТ ПАКЕТ
+void full_package();
+
+//СЧИТАЕТ КОНТРОЛЬНУЮ СУММУ
+void count_CS();
 
 //ОТПРАВЛЯЕТ ПАКЕТ ДАННЫХ ТЕЛЕМЕТРИИ
 
-void sendDataPacket();
+void send_package();
 
 
 
