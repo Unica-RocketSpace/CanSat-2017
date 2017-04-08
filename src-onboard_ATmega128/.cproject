@@ -51,7 +51,7 @@
 							<tool id="de.innot.avreclipse.tool.linker.winavr.app.release.1225988499" name="AVR C Linker" superClass="de.innot.avreclipse.tool.linker.winavr.app.release">
 								<option id="de.innot.avreclipse.linker.option.libpath.2139233898" name="Libraries Path (-L)" superClass="de.innot.avreclipse.linker.option.libpath"/>
 								<option id="de.innot.avreclipse.linker.option.libs.1393888130" name="Libraries (-l)" superClass="de.innot.avreclipse.linker.option.libs"/>
-								<option id="de.innot.avreclipse.linker.option.otherlinkargs.786295103" name="Other Arguments" superClass="de.innot.avreclipse.linker.option.otherlinkargs" value="-Wl,-u,vfprintf -lprintf_flt -lm" valueType="string"/>
+								<option id="de.innot.avreclipse.linker.option.otherlinkargs.786295103" name="Other Arguments" superClass="de.innot.avreclipse.linker.option.otherlinkargs" value="-Wl,-u,vfprintf -lprintf_flt -lm -Wl,-gc-sections" valueType="string"/>
 								<inputType id="de.innot.avreclipse.tool.linker.input.2110858521" name="OBJ Files" superClass="de.innot.avreclipse.tool.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
 									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
@@ -126,7 +126,7 @@
 							<tool id="de.innot.avreclipse.tool.linker.winavr.app.release.854482949" name="AVR C Linker" superClass="de.innot.avreclipse.tool.linker.winavr.app.release">
 								<option id="de.innot.avreclipse.linker.option.libpath.793436217" name="Libraries Path (-L)" superClass="de.innot.avreclipse.linker.option.libpath"/>
 								<option id="de.innot.avreclipse.linker.option.libs.1234779372" name="Libraries (-l)" superClass="de.innot.avreclipse.linker.option.libs"/>
-								<option id="de.innot.avreclipse.linker.option.otherlinkargs.38650561" name="Other Arguments" superClass="de.innot.avreclipse.linker.option.otherlinkargs" value="-Wl,-u,vfprintf -lprintf_flt -lm" valueType="string"/>
+								<option id="de.innot.avreclipse.linker.option.otherlinkargs.38650561" name="Other Arguments" superClass="de.innot.avreclipse.linker.option.otherlinkargs" value="-Wl,-u,vfprintf -lprintf_flt -lm -Wl,-gc-sections" valueType="string"/>
 								<inputType id="de.innot.avreclipse.tool.linker.input.1037966669" name="OBJ Files" superClass="de.innot.avreclipse.tool.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
 									<additionalInput kind="additionalinput" paths="$(LIBS)"/>

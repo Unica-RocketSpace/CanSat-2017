@@ -6,6 +6,7 @@
  */
 
 #include <math.h>
+#include <sofa.h>
 #include <rscs/timeservice.h>
 #include <rscs/ds18b20.h>				//ДРАЙВЕР ДАТЧИКА ТЕМПЕРАТУРЫ DS18B20
 //#include <rscs/bmp180.h>				//ДРАЙВЕР ДАТЧИКА ДАВЛЕНИЯ BMP180
@@ -13,6 +14,7 @@
 //#include "ADXL345.h"					//ДРАЙВЕР АКСЕЛЕРОМЕТРА	ADXL345
 #include "MPU9255.h"					//ДРАЙВЕР ГИРОСКОПА, АКСЕЛЕРОМЕТРА и КОМПАСА (MPU9255)
 #include "kinematic_unit.h"
+
 
 
 void kinematicInit()
@@ -27,9 +29,10 @@ void kinematicInit()
 					0, 0, 0,	//перемещения в м (ИСК)
 					0, 0, 0,	//угловые скорости в 1/с (ИСК)
 
-					0, 0, 0,	//косинусы углов оси Х ИСК с осями ССК
-					0, 0, 0,	//косинусы углов оси Y ИСК с осями ССК
-					0, 0, 0,	//косинусы углов оси Z ИСК с осями ССК
+					{{0, 0, 0},	//косинусы углов оси Х ИСК с осями ССК
+					 {0, 0, 0},	//косинусы углов оси Y ИСК с осями ССК
+					 {0, 0, 0}},	//косинусы углов оси Z ИСК с осями ССК
+					 {0, 0, 0},
 					0
 					};
 
@@ -42,66 +45,129 @@ void kinematicInit()
 }
 
 
+void RSC_to_ISC_recalc(float * RSC_vect, float * ISC_vect)
+{
+	ISC_vect[0] = RSC_vect[0] * STATE.f_XYZ[0][0] + RSC_vect[1] * STATE.f_XYZ[0][1] + RSC_vect[2] * STATE.f_XYZ[0][2];
+	ISC_vect[1] = RSC_vect[0] * STATE.f_XYZ[1][0] + RSC_vect[1] * STATE.f_XYZ[1][1] + RSC_vect[2] * STATE.f_XYZ[1][2];
+	ISC_vect[2] = RSC_vect[0] * STATE.f_XYZ[2][0] + RSC_vect[1] * STATE.f_XYZ[2][1] + RSC_vect[2] * STATE.f_XYZ[2][2];
+}
+
+
+
 void set_ISC_offset()
 {
 	rscs_e error1, error2;
-	int16_t dummy = 0;
+	float dummy1;
+	int16_t dummy2;
 	int16_t accel_raw_XYZ[3];
 	float accel_XYZ[3];
 
-	error1 = MPU9255_read_imu(accel_raw_XYZ, &dummy);
+	float x1_unit_vect[3] = {1, 0, 0};
+	float x_vect[3], x_unit_vect[3], y_vect[3], y_unit_vect[3], g_unit_vect[3];
+
+
+	error1 = MPU9255_read_imu(accel_raw_XYZ, &dummy2);
 	error2 = MPU9255_recalc_accel(accel_raw_XYZ, accel_XYZ);
 
 	while ((error1 & error2) != 0)
 	{
-		float *first_accel_XYZ = (float*)accel_XYZ;
+		iauPn(accel_XYZ, &dummy1, g_unit_vect);
 
-		float g_vect = sqrt(pow(*(first_accel_XYZ + 0), 2) + pow(*(first_accel_XYZ + 1), 2) + pow(*(first_accel_XYZ + 2), 2));
+		//float g_vect = sqrt(pow(*(first_accel_XYZ + 0), 2) + pow(*(first_accel_XYZ + 1), 2) + pow(*(first_accel_XYZ + 2), 2));
 
-		ISC_OFFSET.fOFFSET_X = - ((float)*(first_accel_XYZ + 0) / g_vect);
-		ISC_OFFSET.fOFFSET_Y = - ((float)*(first_accel_XYZ + 1) / g_vect);
-		ISC_OFFSET.fOFFSET_Z = - ((float)*(first_accel_XYZ + 2) / g_vect);
+		STATE.f_XYZ[2][0] = - g_unit_vect[0];
+		STATE.f_XYZ[2][1] = - g_unit_vect[1];
+		STATE.f_XYZ[2][2] = - g_unit_vect[2];
 
-		error1 = MPU9255_read_imu(accel_raw_XYZ, &dummy);
+		error1 = MPU9255_read_imu(accel_raw_XYZ, &dummy2);
 		error2 = MPU9255_recalc_accel(accel_raw_XYZ, accel_XYZ);
+
 	}
+
+	iauPxp(x1_unit_vect, g_unit_vect, y_vect);
+	iauPn(y_vect, &dummy1, y_unit_vect);
+
+	iauPxp(g_unit_vect, y_unit_vect, x_vect);
+	iauPn(x_vect, &dummy1, x_unit_vect);
+
+	STATE.f_XYZ[0][0] = x_unit_vect[0];
+	STATE.f_XYZ[0][1] = x_unit_vect[1];
+	STATE.f_XYZ[0][2] = x_unit_vect[2];
+
+	STATE.f_XYZ[1][0] = y_unit_vect[0];
+	STATE.f_XYZ[1][1] = y_unit_vect[1];
+	STATE.f_XYZ[1][2] = y_unit_vect[2];
+
 }
 
-void ISC_recalc()
-{
-	STATE.fZX1 = ISC_OFFSET.fOFFSET_X;
-	STATE.fZY1 = ISC_OFFSET.fOFFSET_Y;
-	STATE.fZZ1 = ISC_OFFSET.fOFFSET_Z;
-
-
-
-
-}
 
 void set_magn_dir()
 {
 	rscs_e error1, error2;
 	int16_t compass_raw_XYZ[3];
 	float compass_XYZ[3];
+	float dummy1;
+	float B_unit_vect[3];
 
 	error1 = MPU9255_read_compass(compass_raw_XYZ);
 	error2 = MPU9255_recalc_compass(compass_raw_XYZ, compass_XYZ);
 
 	while ((error1 & error2) != 0)
 	{
-		float * first_compass_XYZ = (float*)compass_XYZ;
+		iauPn(compass_XYZ, &dummy1, B_unit_vect);
 
-		//нахождение длины вектора магнитного поля (вектор B)
-		float B_vect = sqrt(pow(*(first_compass_XYZ + 0), 2) + pow(*(first_compass_XYZ + 1), 2) + pow(*(first_compass_XYZ + 2), 2));
-
-		MAGN_DIR.fBX = ((float)*(first_compass_XYZ + 0) / B_vect);
-		MAGN_DIR.fBY = ((float)*(first_compass_XYZ + 1) / B_vect);
-		MAGN_DIR.fBZ = ((float)*(first_compass_XYZ + 2) / B_vect);
+		RSC_to_ISC_recalc(B_unit_vect, STATE.B_XYZ);
 
 		error1 = MPU9255_read_compass(compass_raw_XYZ);
 		error2 = MPU9255_recalc_compass(compass_raw_XYZ, compass_XYZ);
 	}
 }
+
+void recalc_ISC()
+{
+	float m1_vect[3], m1_unit_vect[3];
+
+	rscs_e error1, error2;
+	int16_t compass_raw_XYZ[3];
+	float compass_XYZ[3];
+	float dummy1;
+	float B_vect[3], B_unit_vect[3], C_vect[3], C_unit_vect[3], A_unit_vect[3];		//C - ось вращения, A - третий вектор системы BAC
+
+	error1 = MPU9255_read_compass(compass_raw_XYZ);
+	error2 = MPU9255_recalc_compass(compass_raw_XYZ, compass_XYZ);
+
+
+	RSC_to_ISC_recalc(compass_XYZ, B_vect);		//пересчет вектора магнитного поля в ИСК
+	iauPxp(STATE.B_XYZ, B_unit_vect, C_vect);	//создаем ось вращения С, перпендикулярную плоскости (M,M1)
+	iauPn(C_vect, &dummy1, C_unit_vect);		//нормируем вектор С
+
+	iauPxp(C_unit_vect, STATE.B_XYZ, A_unit_vect);	//находим третий вектор (А) системы координат BАС
+
+	//создание матрицы перехода (М) (BАС->ИСК) и (М) транспонированной
+	float M[3][3] = {	{B_unit_vect[0], A_unit_vect[0], C_unit_vect[0]},
+						{B_unit_vect[1], A_unit_vect[1], C_unit_vect[1]},
+						{B_unit_vect[2], A_unit_vect[2], C_unit_vect[2]}	};
+	float M_1[3][3];
+
+	iauTr(M, M_1);		//Транспонирование матрицы (М)
+	float cosangle = iauPdp(B_unit_vect, STATE.B_XYZ);		//находим косинус угла между векторами В(старый) и B1(новый)
+	float sinangle = sin(acos(cosangle));					//находим синус
+
+	//создание матрицы поворота (R)
+	float R[3][3] = {	{cosangle,		sinangle,	0},
+						{- sinangle,	cosangle,	0},
+						{0,				0,			1}	};
+	//создание матрицы трансформации (Т) - переход, поворот, переход
+	float T[3][3];
+	//Т = M_1 * R * M (в два этапа)
+	iauRxr(M_1, R, T);
+	iauRxr(T, M, T);
+
+	//переписываем STATE.f_XYZ
+	iauRxr(T, STATE.f_XYZ, STATE.f_XYZ);
+
+}
+
 
 void recon_AGC_STATE_TRANSMIT_DATA()
 {
@@ -121,7 +187,7 @@ void recon_AGC_STATE_TRANSMIT_DATA()
 
 void calculate_height()
 {
-	STATE.sZ = 44330 * (1 - pow((STATE.pressure / ZERO_PRESSURE), 1/5.225));
+	STATE.s_XYZ[2] = 44330 * (1 - pow((STATE.pressure / ZERO_PRESSURE), 1/5.225));
 }
 
 
@@ -131,53 +197,47 @@ void trajectoryConstruction()
 	float dt = (rscs_time_get() - STATE.Time) / 1000;
 
 	//определение угловых скоростей (в ИСК)
-	STATE.wX = STATE.gRelatedXYZ[0] * STATE.fXX1 + STATE.gRelatedXYZ[1] * STATE.fXY1 + STATE.gRelatedXYZ[2] * STATE.fXZ1;
-	STATE.wY = STATE.gRelatedXYZ[0] * STATE.fYX1 + STATE.gRelatedXYZ[1] * STATE.fYY1 + STATE.gRelatedXYZ[2] * STATE.fYZ1;
-	STATE.wZ = STATE.gRelatedXYZ[0] * STATE.fZX1 + STATE.gRelatedXYZ[1] * STATE.fZY1 + STATE.gRelatedXYZ[2] * STATE.fZZ1;
 
 
 	//определение углов между осями ИСК и ССК
-	rotation_matrix ROT_M = { 0 };
+	rotation_matrix ROT_M = { {0} };
 
-	ROT_M.fXX1 = STATE.fXX1 + (STATE.fXY1 * STATE.wZ - STATE.fXZ1 * STATE.wY) * dt;
-	ROT_M.fXY1 = STATE.fXY1 + (STATE.fXZ1 * STATE.wX - STATE.fXX1 * STATE.wZ) * dt;
-	ROT_M.fXZ1 = STATE.fXZ1 + (STATE.fXX1 * STATE.wY - STATE.fXY1 * STATE.wX) * dt;
-	ROT_M.fYX1 = STATE.fYX1 + (STATE.fYY1 * STATE.wZ - STATE.fYZ1 * STATE.wY) * dt;
-	ROT_M.fYY1 = STATE.fYY1 + (STATE.fYZ1 * STATE.wX - STATE.fYX1 * STATE.wZ) * dt;
-	ROT_M.fYZ1 = STATE.fYZ1 + (STATE.fYX1 * STATE.wY - STATE.fYY1 * STATE.wX) * dt;
+	ROT_M.f_XYZ[0][0] = STATE.f_XYZ[0][0] + (STATE.f_XYZ[0][1] * STATE.w_XYZ[2] - STATE.f_XYZ[0][2] * STATE.w_XYZ[1]) * dt;
+	ROT_M.f_XYZ[0][1] = STATE.f_XYZ[0][1] + (STATE.f_XYZ[0][2] * STATE.w_XYZ[0] - STATE.f_XYZ[0][0] * STATE.w_XYZ[2]) * dt;
+	ROT_M.f_XYZ[0][2] = STATE.f_XYZ[0][2] + (STATE.f_XYZ[0][0] * STATE.w_XYZ[1] - STATE.f_XYZ[0][1] * STATE.w_XYZ[0]) * dt;
+	ROT_M.f_XYZ[1][0] = STATE.f_XYZ[1][0] + (STATE.f_XYZ[1][1] * STATE.w_XYZ[2] - STATE.f_XYZ[1][2] * STATE.w_XYZ[1]) * dt;
+	ROT_M.f_XYZ[1][1] = STATE.f_XYZ[1][1] + (STATE.f_XYZ[1][2] * STATE.w_XYZ[0] - STATE.f_XYZ[1][0] * STATE.w_XYZ[2]) * dt;
+	ROT_M.f_XYZ[1][2] = STATE.f_XYZ[1][2] + (STATE.f_XYZ[1][0] * STATE.w_XYZ[1] - STATE.f_XYZ[1][1] * STATE.w_XYZ[0]) * dt;
 
-	ROT_M.fZZ1 = ROT_M.fXX1 * ROT_M.fYY1 - ROT_M.fXY1 * ROT_M.fYX1;
-	ROT_M.fZX1 = (ROT_M.fXX1 * ROT_M.fXZ1 + ROT_M.fYX1 * ROT_M.fYZ1) / ROT_M.fZZ1;
-	ROT_M.fZY1 = (ROT_M.fXY1 * ROT_M.fXZ1 + ROT_M.fYY1 * ROT_M.fYZ1) / ROT_M.fZZ1;
+	ROT_M.f_XYZ[2][2] = ROT_M.f_XYZ[0][0] * ROT_M.f_XYZ[1][1] - ROT_M.f_XYZ[0][1] * ROT_M.f_XYZ[1][0];
+	ROT_M.f_XYZ[2][0] = (ROT_M.f_XYZ[0][0] * ROT_M.f_XYZ[0][2] + ROT_M.f_XYZ[1][0] * ROT_M.f_XYZ[1][2]) / ROT_M.f_XYZ[2][2];
+	ROT_M.f_XYZ[2][1] = (ROT_M.f_XYZ[0][1] * ROT_M.f_XYZ[0][2] + ROT_M.f_XYZ[1][1] * ROT_M.f_XYZ[1][2]) / ROT_M.f_XYZ[2][2];
 
 
 	//обновление функций углов в STATE
-	STATE.fXX1 = ROT_M.fXX1;
-	STATE.fXY1 = ROT_M.fXY1;
-	STATE.fXZ1 = ROT_M.fXZ1;
-	STATE.fYX1 = ROT_M.fYX1;
-	STATE.fYY1 = ROT_M.fYY1;
-	STATE.fYZ1 = ROT_M.fYZ1;
-	STATE.fZX1 = ROT_M.fZX1;
-	STATE.fZY1 = ROT_M.fZY1;
-	STATE.fZZ1 = ROT_M.fZZ1;
+	STATE.f_XYZ[0][0] = ROT_M.f_XYZ[0][0];
+	STATE.f_XYZ[0][1] = ROT_M.f_XYZ[0][1];
+	STATE.f_XYZ[0][2] = ROT_M.f_XYZ[0][2];
+	STATE.f_XYZ[1][0] = ROT_M.f_XYZ[1][0];
+	STATE.f_XYZ[1][1] = ROT_M.f_XYZ[1][1];
+	STATE.f_XYZ[1][2] = ROT_M.f_XYZ[1][2];
+	STATE.f_XYZ[2][0] = ROT_M.f_XYZ[2][0];
+	STATE.f_XYZ[2][1] = ROT_M.f_XYZ[2][1];
+	STATE.f_XYZ[2][2] = ROT_M.f_XYZ[2][2];
 
 
 	//определение ускорений
-	STATE.aX = STATE.aRelatedXYZ[0] * STATE.fXX1 + STATE.aRelatedXYZ[1] * STATE.fXY1 + STATE.aRelatedXYZ[2] * STATE.fXZ1;
-	STATE.aY = STATE.aRelatedXYZ[0] * STATE.fYX1 + STATE.aRelatedXYZ[1] * STATE.fYY1 + STATE.aRelatedXYZ[2] * STATE.fYZ1;
-	STATE.aZ = STATE.aRelatedXYZ[0] * STATE.fZX1 + STATE.aRelatedXYZ[1] * STATE.fZY1 + STATE.aRelatedXYZ[2] * STATE.fZZ1;
-
+	RSC_to_ISC_recalc(STATE.aRelatedXYZ, STATE.a_XYZ);
 
 	//определение скоростей
-	STATE.vX = STATE.vX + STATE.aX * dt;
-	STATE.vY = STATE.vY + STATE.aY * dt;
-	STATE.vZ = STATE.vZ + STATE.aZ * dt;
+	STATE.v_XYZ[0] = STATE.v_XYZ[0] + STATE.a_XYZ[0] * dt;
+	STATE.v_XYZ[1] = STATE.v_XYZ[1] + STATE.a_XYZ[1] * dt;
+	STATE.v_XYZ[2] = STATE.v_XYZ[2] + STATE.a_XYZ[2] * dt;
 
 
 	//расчет перемещений
-	STATE.sX = STATE.sX + STATE.vX * dt + STATE.aX * dt * dt / 2;
-	STATE.sY = STATE.sY + STATE.vY * dt + STATE.aY * dt * dt / 2;
+	STATE.s_XYZ[0] = STATE.s_XYZ[0] + STATE.v_XYZ[0] * dt + STATE.a_XYZ[0] * dt * dt / 2;
+	STATE.s_XYZ[1] = STATE.s_XYZ[1] + STATE.v_XYZ[1] * dt + STATE.a_XYZ[1] * dt * dt / 2;
 	calculate_height();	//записывает в STATE.sZ значение высоты
 
 	//TODO: STATE.pressure = BMP_recalc
@@ -189,9 +249,9 @@ void getTranslations (float * translations)
 {
 	float * first_translations = (float*)translations;
 
-	*(first_translations + 0) = STATE.sX;
-	*(first_translations + 1) = STATE.sY;
-	*(first_translations + 2) = STATE.sZ;
+	*(first_translations + 0) = STATE.s_XYZ[0];
+	*(first_translations + 1) = STATE.s_XYZ[1];
+	*(first_translations + 2) = STATE.s_XYZ[2];
 }
 
 
@@ -199,9 +259,9 @@ void getAngVelocity (float * angVelocity)
 {
 	float * first_angVelocity = (float*)angVelocity;
 
-	*(first_angVelocity + 0) = STATE.wX;
-	*(first_angVelocity + 1) = STATE.wY;
-	*(first_angVelocity + 2) = STATE.wZ;
+	*(first_angVelocity + 0) = STATE.w_XYZ[0];
+	*(first_angVelocity + 1) = STATE.w_XYZ[1];
+	*(first_angVelocity + 2) = STATE.w_XYZ[2];
 
 }
 
@@ -210,15 +270,15 @@ void getRotationMatrix (float * RotationMatrix)
 {
 	float * first_RotationMatrix = (float*)RotationMatrix;
 
-	*(first_RotationMatrix + 0) = STATE.fXX1;
-	*(first_RotationMatrix + 1) = STATE.fXY1;
-	*(first_RotationMatrix + 2) = STATE.fXZ1;
-	*(first_RotationMatrix + 3) = STATE.fYX1;
-	*(first_RotationMatrix + 4) = STATE.fYY1;
-	*(first_RotationMatrix + 5) = STATE.fYZ1;
-	*(first_RotationMatrix + 6) = STATE.fZX1;
-	*(first_RotationMatrix + 7) = STATE.fZY1;
-	*(first_RotationMatrix + 8) = STATE.fZZ1;
+	*(first_RotationMatrix + 0) = STATE.f_XYZ[0][0];
+	*(first_RotationMatrix + 1) = STATE.f_XYZ[0][1];
+	*(first_RotationMatrix + 2) = STATE.f_XYZ[0][2];
+	*(first_RotationMatrix + 3) = STATE.f_XYZ[1][0];
+	*(first_RotationMatrix + 4) = STATE.f_XYZ[1][1];
+	*(first_RotationMatrix + 5) = STATE.f_XYZ[1][2];
+	*(first_RotationMatrix + 6) = STATE.f_XYZ[2][0];
+	*(first_RotationMatrix + 7) = STATE.f_XYZ[2][1];
+	*(first_RotationMatrix + 8) = STATE.f_XYZ[2][2];
 
 }
 

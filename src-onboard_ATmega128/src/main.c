@@ -45,7 +45,6 @@ int main()
 
 	DDRB = (1 << 5);
 	init_hw();
-	set_ISC();
 
 	while(1)
 	{

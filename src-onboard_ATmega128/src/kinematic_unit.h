@@ -31,15 +31,16 @@ typedef struct
 	float cRelatedXYZ[3];	//косинусы углов вектора магнитного поля с осями ССК
 	float pressure;
 
-	float aX; float aY; float aZ;		//ускорения в м/с^2 (ИСК)
-	float vX; float vY; float vZ;		//скорости в м/с (ИСК)
-	float sX; float sY; float sZ;		//перемещения в м (ИСК)
-	float wX; float wY; float wZ;		//угловые скорости в 1/с (ИСК)
+	float a_XYZ[3];		//ускорения в м/с^2 (ИСК)
+	float v_XYZ[3];		//скорости в м/с (ИСК)
+	float s_XYZ[3];		//перемещения в м (ИСК)
+	float w_XYZ[3];		//угловые скорости в 1/с (ИСК)
 
 	//Матрица поворота ССК относительно ИСК
-	float fXX1; float fXY1; float fXZ1;	//косинусы углов оси Х ИСК с осями ССК
-	float fYX1; float fYY1; float fYZ1;	//косинусы углов оси Y ИСК с осями ССК
-	float fZX1; float fZY1; float fZZ1;	//косинусы углов оси Z ИСК с осями ССК
+	float f_XYZ[3][3];	//строка, столбец
+
+	//Единичный вектор магнитного поля
+	float B_XYZ[3];
 
 	uint32_t Time;
 
@@ -49,30 +50,8 @@ typedef struct
 //Матрица поворота
 typedef struct
 {
-	float fXX1; float fXY1; float fXZ1;	//косинусы углов оси Х ИСК с осями ССК
-	float fYX1; float fYY1; float fYZ1;	//косинусы углов оси Y ИСК с осями ССК
-	float fZX1; float fZY1; float fZZ1;	//косинусы углов оси Z ИСК с осями ССК
-
+	float f_XYZ[3][3];
 }rotation_matrix;
-
-//Матрица направляющих косинусов вектора магнитного поля с осями ИСК (XYZ)
-typedef struct
-{
-	float fBX;
-	float fBY;
-	float fBZ;
-
-}magnetic_direction;
-
-//Матрица косинусов углов для корректировки ИСК
-/* Данная матрица заполняется непосредственно перед стартом
- * (считаются косинусы углов между вектором g и его проекциями на оси XYZ)*/
-typedef struct
-{
-	float fOFFSET_X;
-	float fOFFSET_Y;
-	float fOFFSET_Z;
-}isc_offset;
 
 //Необработанные данные для передачи по радиоканалу
 typedef struct
@@ -90,9 +69,6 @@ extern state STATE;
 
 extern transmit_data TRANSMIT_DATA;
 
-extern magnetic_direction MAGN_DIR;
-
-extern isc_offset ISC_OFFSET;
 
 
 /*=================================================================================*/
@@ -101,11 +77,17 @@ extern isc_offset ISC_OFFSET;
 //ИНИЦИАЛИЗИРУЕТ ПРОГРАММУ КИНЕМАТИЧЕСКОГО СОСТОЯНИЯ АППАРАТА, А ТАК ЖЕ ДРАЙВЕРЫ ВНЕШНИХ УСТРОЙСТВ
 void kinematicInit();
 
+//ПЕРЕВОДИТ ПОЛУЧЕННЫЙ ВЕКТОР ИЗ СВЯЗАННОЙ СИСТЕМЫ КООРДИНАТ В ИНЕРЦИАЛЬНУЮ, ИСПОЛЬЗУЯ МАТРИЦУ ПОВОРОТА STATE.fXYZ[3][3]
+void RSC_to_ISC_recalc(float * RSC_vect, float * ISC_vect);		//R - related, I - inertional
+
 //УСТАНОВКА ИСК (запись поправочных направляющих косинусов)
 void set_ISC_offset();
 
 //ЗАПИСЬ МАТРИЦЫ НАПРАВЛЯЮЩИХ КОСИНУСОВ ВЕКТОРА МАГНИТНОГО ПОЛЯ С ОСЯМИ ИСК
 void set_magn_dir();
+
+//ОСУЩЕСТВЛЯЕТ КОРРЕКТИРОВКУ МАТРИЦЫ НАПРАВЛЯЮЩИХ КОСИНУСОВ ПО ПОКАЗАНИЯМ МАГНИТОМЕТРА
+void recalc_ISC();
 
 //РАССЧИТЫВАЕТ ТЕКУЩЕЕ СОСТОЯНИЕ АППАРАТА
 void recon_AGC_STATE_TRANSMIT_DATA();
