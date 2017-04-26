@@ -22,7 +22,7 @@ void timer0_init()
    OCR0  = 255;				//Номер такта, при котором будет срабатывать прерывание
    //TIMSK |= (1 << OCIE0);	//Разрешает прерывания по сравнению
 }
-
+*/
 void timer1PWMInit()
 {
 	TCCR1A =	(1 << COM1A1) |
@@ -48,4 +48,3 @@ void timer1PWMInit()
 	//ETIMSK |= (1 << OCIE1C);
 }
 
-*/

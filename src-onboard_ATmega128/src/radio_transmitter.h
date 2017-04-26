@@ -8,7 +8,7 @@
 #ifndef RADIO_TRANSMITTER_H_
 #define RADIO_TRANSMITTER_H_
 
-extern rscs_uart_bus_t * uart0;
+//extern rscs_uart_bus_t * uart0;
 
 #pragma pack(push,1)
 typedef struct

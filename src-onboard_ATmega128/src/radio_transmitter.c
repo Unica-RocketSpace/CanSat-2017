@@ -12,6 +12,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <rscs/bmp280.h>
+#include <rscs/ds18b20.h>
+
 #include "../librscs/rscs/uart.h"
 
 #include "radio_transmitter.h"
@@ -54,14 +57,14 @@ void transmition_init()
 
 void full_package()
 {
+	recon_AGC_STATE_TRANSMIT_DATA();
 
 	PACKAGE.marker = 0xFFFF;
 
-	//PACKAGE.pressure1 =  BMP_get;
-	//PACKAGE.pressure2 =  BMP_get;
+	PACKAGE.pressure1 = TRANSMIT_DATA.pressure;
+	PACKAGE.pressure2 =  PACKAGE.pressure1;
 
-	//PACKAGE.temp1 = rscs_ds18b20_read_temperature(...);
-	//PACKAGE.temp1 = rscs_ds18b20_read_temperature(...);
+	PACKAGE.temp2 = TRANSMIT_DATA.temperature;
 
 	//запись ускорений
 	PACKAGE.aXYZ[0] = TRANSMIT_DATA.aTransmitXYZ[0];
@@ -100,7 +103,7 @@ void count_CS()
 
 }
 
-
+//TODO: сделать!!!!!!!
 void send_package()
 {
 	full_package();
@@ -108,7 +111,7 @@ void send_package()
 
 	//запись пакета в UART
 	cli();
-	rscs_uart_write(uart0, &PACKAGE, sizeof(PACKAGE));
+	//rscs_uart_write(uart0, &PACKAGE, sizeof(PACKAGE));
 	sei();
 
 	PACKAGE.number++;

@@ -7,6 +7,9 @@
 #include <rscs/uart.h>
 #include <rscs/i2c.h>
 #include <rscs/spi.h>
+#include <rscs/onewire.h>
+#include <rscs/bmp280.h>
+#include <rscs/ds18b20.h>
 #include <rscs/timeservice.h>
 #include <rscs/stdext/stdio.h>
 
@@ -20,31 +23,11 @@
 #include "MPU9255.h"
 
 
-void init_hw(void)
-{
-
-/*	// настраиваем printf на уарт0
-	FILE * uart_std = rscs_make_uart_stream(uart0);
-	stdout = uart_std;
-*/
-
-	// настраиваем i2c, spi и прочее
-	rscs_i2c_init();
-	rscs_i2c_set_scl_rate(400);
-
-	MPU9255_init();
-
-	rscs_spi_init();
-	rscs_time_init();
-
-	transmition_init();
-}
-
 int main()
 {
 
 	DDRB = (1 << 5);
-	init_hw();
+	hardwareInit();
 
 	while(1)
 	{
