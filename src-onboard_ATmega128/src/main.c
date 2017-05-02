@@ -23,41 +23,64 @@
 #include "MPU9255.h"
 
 
+void blink_led()
+{
+		PORTG ^= (1 << 3);
+		_delay_ms(500);
+
+}
+
+
 int main()
 {
 
-	DDRB = (1 << 5);
+	_delay_ms(2000);
+	DDRG = (1);
 	hardwareInit();
+	rscs_e error = rscs_ds18b20_start_conversion(ds18b20);
+	printf("ds_start_error: %d\n", error);
+	_delay_ms(1500);
+	bool b = rscs_ds18b20_check_ready();
+	printf("ds_ready: %d", b);
+
+	while (1)
+	{
+		set_zero_pressure();
+		blink_led();
+		/*int16_t dummy1, dummy2;
+		pressure_read_recon(&dummy1, &dummy2, &
+				STATE.pressure);
+		//pull_recon_data();
+		printf("pressure: %f\n", STATE.pressure);*/
+
+		pull_recon_data();
+		//printf("ax: %f, ay: %f, az: %f\n", STATE.aRelatedXYZ[0], STATE.aRelatedXYZ[1], STATE.aRelatedXYZ[2]);
+		//printf("height : %f\n", STATE.height);
+		printf("temperature bmp280 : %f\n", STATE.temp_bmp280);
+		printf("temperature ds18b20: %f\n\n", STATE.temp_ds18b20);
+
+
+	}
+
+	/*
+	hardwareInit();
+	set_ISC_offset();
+	set_magn_dir();
+
 
 	while(1)
 	{
-		//rscs_e e;
-		//uint8_t data1[12] = {0};
-		//float data2[6] = {0};
-		int16_t kompas_data[3] = {0};
+		pull_recon_data();
+		construct_trajectory();
 
-		/*e = MPU9255_accel_gyro_data(data1, data2);
-		printf("\nAcceleromer (error: %d)\n", e);
-		for (int i = 0; i < 3; i++)
+		if (STATE.state && 0b00000001)
 		{
-			printf("data[%d]: %ld\n",i, (long)data2[i]);
-		}
-		printf("Gyroscope (error: %d)\n", e);
-		for (int i = 3; i < 6; i++)
-		{
-			printf("data[%d]: %ld\n",i, (long)data2[i]);
-		}*/
-
-		/*e = MPU9255_kompas_data(kompas_data);
-		printf("Kompas (error: %d)\n", e);*/
-		for (int i = 0; i < 3/*sizeof(data1)*/; i++)
-		{
-			//printf("data[%d]: %ld\n",i, (long)data2[i]);
-			printf("data[%d]: %d\n",i, kompas_data[i]);
+			recalc_ISC();
 		}
 
-		_delay_ms(500);
-	}
+		send_package();
+	}*/
+	_delay_ms(100);
 
 	return 0;
 }

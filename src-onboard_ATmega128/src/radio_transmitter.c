@@ -20,51 +20,41 @@
 #include "radio_transmitter.h"
 #include "kinematic_unit.h"
 #include "rscs/timeservice.h"
-
-/*
-uint8_t packet_size = sizeof(packet);
-uint8_t * packet_address = (uint8_t *)&packet;
+#include "rscs/stdext/stdio.h"
 
 
-uint16_t count_CS()
-{
-	uint16_t CS = 0;
-
-	for (int i = 0; i < packet_size - 2; i++)
-	{
-		uint32_t HCS = CS + *(packet_address + i);
-		CS = (uint16_t)(HCS & 0x0000FFFF);
-	}
-
-	return CS;
-}*/
-
+rscs_uart_bus_t * uart0;
+package PACKAGE;
 
 void transmition_init()
 {
 
-	rscs_uart_bus_t * uart0 = rscs_uart_init(RSCS_UART_ID_UART0,
+	uart0 = rscs_uart_init(RSCS_UART_ID_UART0,
 				RSCS_UART_FLAG_ENABLE_TX /*| RSCS_UART_FLAG_BUFFER_TX*/);
 	rscs_uart_set_baudrate(uart0, 9600);
 	rscs_uart_set_character_size(uart0, 8);
 	rscs_uart_set_parity(uart0, RSCS_UART_PARITY_NONE);
 	rscs_uart_set_stop_bits(uart0, RSCS_UART_STOP_BITS_ONE);
 
+//FIXME: УБРАТЬ!!!!!!!
+	// настраиваем printf на уарт0
+	FILE * uart_std = rscs_make_uart_stream(uart0);
+	stdout = uart_std;
 
-	package PACKAGE = { 0 };
+	package PACKAGE_ = { 0 };
+	PACKAGE = PACKAGE_;
 
 }
 
 void full_package()
 {
-	recon_AGC_STATE_TRANSMIT_DATA();
-
 	PACKAGE.marker = 0xFFFF;
 
 	PACKAGE.pressure1 = TRANSMIT_DATA.pressure;
 	PACKAGE.pressure2 =  PACKAGE.pressure1;
 
-	PACKAGE.temp2 = TRANSMIT_DATA.temperature;
+	PACKAGE.temp1 = TRANSMIT_DATA.temp1;	//температура с bmp280
+	PACKAGE.temp2 = TRANSMIT_DATA.temp2;	//температура с ds18b20
 
 	//запись ускорений
 	PACKAGE.aXYZ[0] = TRANSMIT_DATA.aTransmitXYZ[0];
@@ -103,17 +93,14 @@ void count_CS()
 
 }
 
-//TODO: сделать!!!!!!!
+
 void send_package()
 {
 	full_package();
 	count_CS();
 
 	//запись пакета в UART
-	cli();
-	//rscs_uart_write(uart0, &PACKAGE, sizeof(PACKAGE));
-	sei();
-
+	rscs_uart_write(uart0, &PACKAGE, sizeof(PACKAGE));
 	PACKAGE.number++;
 
 }

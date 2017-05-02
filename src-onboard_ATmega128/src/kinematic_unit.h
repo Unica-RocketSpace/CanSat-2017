@@ -13,6 +13,9 @@
 #ifndef KINEMATIC_UNIT_H_
 #define KINEMATIC_UNIT_H_
 
+#include <rscs/ds18b20.h>
+#include <rscs/bmp280.h>
+
 //давление на земле
 //TODO: задать
 #define ZERO_PRESSURE 1
@@ -30,11 +33,14 @@ typedef struct
 	float aRelatedXYZ[3];	//ускорения в единицах g (в ССК)
 	float gRelatedXYZ[3];	//угловые скорости в degps (в ССК)
 	float cRelatedXYZ[3];	//косинусы углов вектора магнитного поля с осями ССК
-	float pressure;
+	float height;
+	float zero_pressure;
+	float temp_bmp280;			//FIXME: ВРЕМЕННО! после проверки убрать
+	float temp_ds18b20;			//FIXME: ВРЕМЕННО! после проверки убрать
 
 	float a_XYZ[3];		//ускорения в м/с^2 (ИСК)
 	float v_XYZ[3];		//скорости в м/с (ИСК)
-	float s_XYZ[3];		//перемещения в м (ИСК)
+	float s_XYZ[3];		//координата аппарата в м (ИСК)
 	float w_XYZ[3];		//угловые скорости в 1/с (ИСК)
 
 	//Матрица поворота ССК относительно ИСК
@@ -42,6 +48,8 @@ typedef struct
 
 	//Единичный вектор магнитного поля
 	float B_XYZ[3];
+
+	uint8_t state;		//состояние, можно писать интересующие биты
 
 	uint32_t Time;
 
@@ -61,7 +69,8 @@ typedef struct
 	int16_t gTransmitXYZ[3];
 	int16_t cTransmitXYZ[3];
 
-	int16_t temperature;
+	int16_t temp1;
+	int16_t temp2;
 	int16_t pressure;
 
 }transmit_data;
@@ -73,6 +82,7 @@ extern state STATE;
 
 extern transmit_data TRANSMIT_DATA;
 
+extern const rscs_bmp280_calibration_values_t * calibrate_values;
 
 /*=================================================================================*/
 /*===============================ОПИСАНИЕ=ФУНКЦИЙ==================================*/
@@ -83,8 +93,11 @@ void kinematicInit();
 //ИНИЦИАЛИЗИРУЕТ ШИНЫ И ДАТЧИКИ
 void hardwareInit();
 
-//ЧИТАЕТ BMP280 И ПЕРЕВОДИТ В uint16_t
-void BMP280_read_uint16(int32_t * raw_pressure32, int32_t * raw_temp32, uint16_t * raw_pressure, uint16_t * raw_temp);
+//УСТАНАВЛИВАЕТ НУЛЕВОЕ ДАВЛЕНИЕ
+void set_zero_pressure();
+
+//ЧИТАЕТ BMP280, ПЕРЕВОДИТ В uint16_t И ПЕРЕСЧИТЫВАЕТ ДАВЛЕНИЕz В float
+void pressure_read_recon(int16_t * raw_pressure, int16_t * raw_temp, float * height, float * temp);
 
 //ПЕРЕВОДИТ ПОЛУЧЕННЫЙ ВЕКТОР ИЗ СВЯЗАННОЙ СИСТЕМЫ КООРДИНАТ В ИНЕРЦИАЛЬНУЮ, ИСПОЛЬЗУЯ МАТРИЦУ ПОВОРОТА STATE.fXYZ[3][3]
 void RSC_to_ISC_recalc(float * RSC_vect, float * ISC_vect);		//R - related, I - inertional
@@ -98,14 +111,14 @@ void set_magn_dir();
 //ОСУЩЕСТВЛЯЕТ КОРРЕКТИРОВКУ МАТРИЦЫ НАПРАВЛЯЮЩИХ КОСИНУСОВ ПО ПОКАЗАНИЯМ МАГНИТОМЕТРА
 void recalc_ISC();
 
-//РАССЧИТЫВАЕТ ТЕКУЩЕЕ СОСТОЯНИЕ АППАРАТА
-void recon_AGC_STATE_TRANSMIT_DATA();
+//ОПРАШИВАЕТ ДАТЧИКИ
+void pull_recon_data();
 
 //ОПРЕДЕЛЯЕТ ВЫСОТУ ПО ДАВЛЕНИЮ
 void calculate_height();
 
 //РАССЧИТЫВАЕТ МАТРИЦУ ПОВОРОТА, УГЛОВЫЕ СКОРОСТИ, СКОРОСТИ, УСКОРЕНИЯ И ПЕРЕМЕЩЕНИЯ В ИСК И ЗАПИСЫВАЕТ ИХ В STATE
-void trajectoryConstruction();
+void construct_trajectory();
 
 
 //ПЕРЕДАЕТ ПЕРЕМЕЩЕНИЯ АППАРАТА В ИСК
