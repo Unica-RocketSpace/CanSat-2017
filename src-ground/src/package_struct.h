@@ -39,6 +39,9 @@ typedef struct
 }package;
 #pragma pack(pop)
 
+extern package PACKAGE;				//name of package
+
+
 //extern package PACKAGE;
 //extern package * PACKAGE_ADDR;
 

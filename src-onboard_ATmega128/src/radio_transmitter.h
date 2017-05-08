@@ -12,7 +12,7 @@
 
 extern rscs_uart_bus_t * uart0;
 
-#pragma pack(push,1)
+//#pragma pack(push,1)
 typedef struct
 {
 	uint16_t marker;	//marker
@@ -35,7 +35,7 @@ typedef struct
 	uint16_t CS;		//control summ (CS) for checking packages on the Earth
 
 }package;
-#pragma pack(pop)
+//#pragma pack(pop)
 
 extern package PACKAGE;				//name of package
 

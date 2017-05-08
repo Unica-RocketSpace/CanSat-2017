@@ -86,13 +86,13 @@
 // Настройки ONE_WIRE - модуля взаимодействия по ONEWIRE шине
 // ========================================================
 // Регистр PORT на котором расположен пин onewire шины
-#define RSCS_ONEWIRE_REG_PORT (PORTA)
+#define RSCS_ONEWIRE_REG_PORT (PORTC)
 // Регистр PIN на котором расположен пин onewire шины
-#define RSCS_ONEWIRE_REG_PIN  (PINA)
+#define RSCS_ONEWIRE_REG_PIN  (PINC)
 // Регистр DDR на котором расположен пин onewire шины
-#define RSCS_ONEWIRE_REG_DDR  (DDRA)
+#define RSCS_ONEWIRE_REG_DDR  (DDRC)
 // Битовая маска, задающая тот самый пин на порту
-#define RSCS_ONEWIRE_PIN_MASK (1 << 0)
+#define RSCS_ONEWIRE_PIN_MASK (1 << 7)
 
 
 
@@ -161,25 +161,6 @@
 #define ADXL345_CS_DDR			DDRB	// регистр DDR порта, на котором расположен CS пин
 #define ADXL345_CS_PORT			PORTB	// регистр PORT порта, на котором расположен CS пин
 #define ADXL345_CS_PIN			4		// номер пина CS в порту
-
-
-
-// ========================================================
-// Настройки дебажных макросов
-// ========================================================
-#ifdef RSCS_DEBUGMODE
-
-#define RSCS_DEBUG_INIT(UART) stdin = stdout = rscs_make_uart_stream(UART); //инициализация дебага, принимает rscs_uart_bus_t *
-
-#define RSCS_DEBUG printf //предполагается писать этот макрос вместо дебажного printf
-
-#else
-
-#define RSCS_DEBUG_INIT(UART) (void) UART;
-
-#define RSCS_DEBUG (void) //и в случае отключения дебага просто не делать ничего
-
-#endif //#ifdef RSCS_DEBUGMODE
 
 
 

@@ -12,6 +12,13 @@
 
 #define MPU9255_ADR 0b1101000	// если AD0 = 0, иначе адрес 1101001
 #define KOMPASS_ADR 0b0001100	// если CAD1 = CAD0 = 0, иначе адрес другой; режим pass-through mode
+//#define MPU9255_ACCEL_SCALE_FACTOR	0.00062217
+#define MPU9255_GYRO_SCALE_FACTOR	0.00013323
+#define MPU9255_ACCEL_SCALE_FACTOR	0.00055217
+
+#define GOTO_END_IF_ERROR(op) if ((error = op) != RSCS_E_NONE) goto end;
+#define ACCEL_RANGE 1					//2g - 00, 4g - 01, 8g - 10, 16g - 11
+#define GYRO_RANGE 1
 
 typedef enum
 {
@@ -28,9 +35,9 @@ rscs_e MPU9255_read_imu(int16_t * raw_accel_XYZ, int16_t * raw_gyro_XYZ);	//чт
 rscs_e MPU9255_read_compass(int16_t * raw_compass_XYZ);					//чтение данных с магнитометра
 
 
-rscs_e MPU9255_recalc_accel(const int16_t * raw_accel_XYZ, float * accel_XYZ);	//перевод показаний акселерометра в единицы g
-rscs_e MPU9255_recalc_gyro(const int16_t * raw_gyro_XYZ, float * gyro_XYZ);		//перевод показаний гироскопа в единицы dps
-rscs_e MPU9255_recalc_compass(const int16_t * raw_compass_XYZ, float * compass_XYZ);
+void MPU9255_recalc_accel(const int16_t * raw_accel_XYZ, float * accel_XYZ);	//перевод показаний акселерометра в единицы g
+void MPU9255_recalc_gyro(const int16_t * raw_gyro_XYZ, float * gyro_XYZ);		//перевод показаний гироскопа в единицы dps
+void MPU9255_recalc_compass(const int16_t * raw_compass_XYZ, float * compass_XYZ);
 
 void MPU9255_init();		//initialisation of the I2C wire
 

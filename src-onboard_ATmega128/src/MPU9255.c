@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <util/delay.h>
 
 #include <rscs/stdext/stdio.h>
 #include <rscs/i2c.h>
@@ -17,21 +18,32 @@
 #include "MPU9255.h"
 
 
-#define MPU9255_ACCEL_SCALE_FACTOR	0.0062217
-#define MPU9255_GYRO_SCALE_FACTOR	0.00013323
-#define GOTO_END_IF_ERROR(op) if ((error = op) != RSCS_E_NONE) goto end;
-
 rscs_e MPU9255_read_register(MPU9255_address adr, uint8_t reg_address, uint8_t *data_read, uint8_t n_read)
 {
 	rscs_e error;
 
+	/*error = rscs_i2c_start();
+	printf("i2c_start = %d\n", error);*/
 	GOTO_END_IF_ERROR(rscs_i2c_start());
+
+	/*error = rscs_i2c_send_slaw(adr, rscs_i2c_slaw_read);
+	printf("i2c_slaw_read = %d\n", error);*/
 	GOTO_END_IF_ERROR(rscs_i2c_send_slaw(adr, rscs_i2c_slaw_write));
+
+	/*error = rscs_i2c_write(&reg_address, 1);
+	printf("i2c_write_address = %d\n", error);*/
 	GOTO_END_IF_ERROR(rscs_i2c_write(&reg_address, 1));
 
+	/*error = rscs_i2c_start();
+	printf("i2c_start = %d\n", error);*/
 	GOTO_END_IF_ERROR(rscs_i2c_start());
+
+	/*error = rscs_i2c_send_slaw(adr, rscs_i2c_slaw_read);
+	printf("i2c_slaw_read = %d\n", error);*/
 	GOTO_END_IF_ERROR(rscs_i2c_send_slaw(adr, rscs_i2c_slaw_read));
 
+	/*error = rscs_i2c_read(data_read, n_read, 1);
+	printf("i2c_read_error = %d\n", error);*/
 	GOTO_END_IF_ERROR(rscs_i2c_read(data_read, n_read, 1));
 
 end:
@@ -60,14 +72,14 @@ void MPU9255_init()
 
 	MPU9255_write_register(GYRO_AND_ACCEL,	25,		0b00000001);	//Sample Rate Divider
 	MPU9255_write_register(GYRO_AND_ACCEL,	26,		0b00000001);	//config (DLPF = 001)
-	MPU9255_write_register(GYRO_AND_ACCEL,	28,		0b00001000); 	//accel config (rate 4g = 01)
+	MPU9255_write_register(GYRO_AND_ACCEL,	28,		(0b00000000 | (ACCEL_RANGE << 3))); 	//accel config (rate 4g = 01)
 	MPU9255_write_register(GYRO_AND_ACCEL,	29,		0b00000001);	//accel config 2 (Fch_b = 00, DLPF = 001)
-	MPU9255_write_register(GYRO_AND_ACCEL,	35,		0b00000000);	//FIFO enable
+	MPU9255_write_register(GYRO_AND_ACCEL,	35,		0b00000000);	//FIFO enable (not enabled)
 	MPU9255_write_register(GYRO_AND_ACCEL,	56,		0b00000000);	//interrupt enable (int disable = 0)
 	MPU9255_write_register(GYRO_AND_ACCEL,	106,	0b00000000);	//user control
 	MPU9255_write_register(GYRO_AND_ACCEL,	107,	0b00000001);	//power managment 1
 	MPU9255_write_register(GYRO_AND_ACCEL,	108,	0b00000000);	//power managment 2
-	MPU9255_write_register(GYRO_AND_ACCEL,	27,		0b00010000);	//gyro config (rate 500dps = 01, Fch_b = 00)
+	MPU9255_write_register(GYRO_AND_ACCEL,	27,		(0b00000000 | (GYRO_RANGE << 4)) );	//gyro config (rate 500dps = 01, Fch_b = 00)
 
 
 	MPU9255_write_register(GYRO_AND_ACCEL,	55,		0b00000010);	//режим bypass on
@@ -113,17 +125,20 @@ rscs_e MPU9255_read_compass(int16_t * raw_compass_XYZ)
 	uint8_t dummy;
 
 	GOTO_END_IF_ERROR(MPU9255_write_register(GYRO_AND_ACCEL, 55, 0b00000010));	//режим bypass on
+	MPU9255_read_register(COMPASS, 0x02, &dummy, 1);
+	//printf("read_dummy_error = %d\n", read_dummy_error);
 	GOTO_END_IF_ERROR(MPU9255_read_register(COMPASS, 0x02, &dummy, 1));
+
 
 	if ((dummy && 0x01) != 1)
 	{
-		STATE.state = 0x00;		//магнитометр не готов
+		STATE.state &= ~(1 << 1);		//магнитометр не готов
 		GOTO_END_IF_ERROR(MPU9255_write_register(GYRO_AND_ACCEL, 55, 0b00000000));	//режим bypass off
 		error = -7;
 		goto end;
 	}
 
-	STATE.state = 0b00000001;	////магнитометр готов
+	STATE.state |= (1 << 1);	////магнитометр готов
 	GOTO_END_IF_ERROR(MPU9255_read_register(COMPASS, 0x03, (uint8_t*)raw_compass_XYZ, 6));
 	GOTO_END_IF_ERROR(MPU9255_read_register(COMPASS, 0x09, &dummy, 1));
 	GOTO_END_IF_ERROR(MPU9255_write_register(GYRO_AND_ACCEL, 55, 0b00000000));	//режим bypass off
@@ -133,49 +148,21 @@ end:
 }
 
 
-rscs_e MPU9255_recalc_accel(const int16_t * raw_accel_XYZ, float * accel_XYZ)
+void MPU9255_recalc_accel(const int16_t * raw_accel_XYZ, float * accel_XYZ)
 {
-	rscs_e error = 0;
-
-	uint8_t  range = 1;
-	uint8_t  a_range_reg;	//диапазон измерений акселерометра из регистра
-
-	//TODO: УБРАТЬ ЗАПРОС ДИАПАЗОНА ИЗМЕРЕНИЙ КАЖДЫЙ ЦИКЛ
-	GOTO_END_IF_ERROR(MPU9255_read_register(GYRO_AND_ACCEL, 28, &a_range_reg, 1));
-
-	for (size_t i = 0; i < ((a_range_reg & 0b00011000) >> 3); i++)
-		range = range * 2;
-
 	for (int i = 0; i < 3; i++)
-		accel_XYZ[i] = (float)(raw_accel_XYZ[i]) * MPU9255_ACCEL_SCALE_FACTOR * range;
-
-end:
-	return error;
+		accel_XYZ[i] = (float)(raw_accel_XYZ[i]) * MPU9255_ACCEL_SCALE_FACTOR * pow(2, ACCEL_RANGE);
 }
 
 
-rscs_e MPU9255_recalc_gyro(const int16_t * raw_gyro_XYZ, float * gyro_XYZ)
+void MPU9255_recalc_gyro(const int16_t * raw_gyro_XYZ, float * gyro_XYZ)
 {
-	rscs_e error = 0;
-
-	uint8_t  range = 1;
-	uint8_t  g_range_reg;	//диапазон измерений гироскопа из регистра
-
-	GOTO_END_IF_ERROR(MPU9255_read_register(GYRO_AND_ACCEL, 27, &g_range_reg, 1));
-
-	for (size_t i = 0; i < ((g_range_reg & 0b00011000) >> 3); i++)
-		range = range * 2;
-
 	for (int i = 0; i < 3; i++)
-		gyro_XYZ[i] = (float)(raw_gyro_XYZ[i]) * MPU9255_GYRO_SCALE_FACTOR * range;
-
-end:
-	return error;
+		gyro_XYZ[i] = (float)(raw_gyro_XYZ[i]) * MPU9255_GYRO_SCALE_FACTOR * pow(2, GYRO_RANGE);
 }
 
-rscs_e MPU9255_recalc_compass(const int16_t * raw_compass_XYZ, float * compass_XYZ)
+void MPU9255_recalc_compass(const int16_t * raw_compass_XYZ, float * compass_XYZ)
 {
-	rscs_e error = 0;
 	float x, y, z;
 
 	float length = sqrt(pow(*(raw_compass_XYZ + 0), 2) + pow(*(raw_compass_XYZ + 1), 2) + pow(*(raw_compass_XYZ + 2), 2));
@@ -187,5 +174,4 @@ rscs_e MPU9255_recalc_compass(const int16_t * raw_compass_XYZ, float * compass_X
 	compass_XYZ[0] = x;
 	compass_XYZ[1] = y;
 	compass_XYZ[2] = z;
-	return error;
 }

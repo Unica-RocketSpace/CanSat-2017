@@ -7,62 +7,74 @@
 
 #include <math.h>
 #include <sofa.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+
 #include <rscs/timeservice.h>
 #include <rscs/ds18b20.h>				//ДРАЙВЕР ДАТЧИКА ТЕМПЕРАТУРЫ DS18B20
 #include <rscs/bmp280.h>				//ДРАЙВЕР ДАТЧИКА ДАВЛЕНИЯ BMP180
 #include <rscs/onewire.h>
-#include <timer.h>
-#include "rscs/stdext/stdio.h"
-#include "util/delay.h"
+#include <rscs/stdext/stdio.h>
+#include <rscs/adxl345.h>				//ДРАЙВЕР АКСЕЛЕРОМЕТРА	ADXL345
 
-//#include "ADXL345.h"					//ДРАЙВЕР АКСЕЛЕРОМЕТРА	ADXL345
+
+
 #include "MPU9255.h"					//ДРАЙВЕР ГИРОСКОПА, АКСЕЛЕРОМЕТРА и КОМПАСА (MPU9255)
 #include "kinematic_unit.h"
 #include "radio_transmitter.h"
+#include "timer.h"
 
 state STATE;
 transmit_data TRANSMIT_DATA;
 rscs_bmp280_descriptor_t * bmp280;
 rscs_ds18b20_t * ds18b20;
+rscs_adxl345_t * adxl345;
+
 
 const rscs_bmp280_calibration_values_t * calibrate_values;
 
 
 void hardwareInit(void)
 {
+	/*инициализация радиопередатчика*/
+	transmition_init();
+	//sei();
+
 	/*инициализация i2c*/
 	rscs_i2c_init();
-	rscs_i2c_set_scl_rate(100);
+	rscs_i2c_set_scl_rate(200);
 
 	/*инициализация 1-wire*/
 	rscs_ow_init_bus();
 
 	/*инициализация ds18b20*/
 	ds18b20 = rscs_ds18b20_init(0x00);		//создание дескриптора
-	//FIXME: вернуть rscs_ds18b20_start_conversion(ds18b20);	//начало первого замера
+	rscs_ds18b20_start_conversion(ds18b20);	//начало первого замера
 
 	/*инициализация BMP280*/
-	rscs_bmp280_parameters_t * parameters;
-	parameters->pressure_oversampling = RSCS_BMP280_OVERSAMPLING_X4;		//4		измерения на один результат
-	parameters->temperature_oversampling = RSCS_BMP280_OVERSAMPLING_X1;		//1		измерение на один результат
-	parameters->standbytyme = RSCS_BMP280_STANDBYTIME_500US;				//0.5ms	время между 2 измерениями
-	parameters->filter = RSCS_BMP280_FILTER_X16;							//x16	фильтр
 
-	bmp280 = rscs_bmp280_initi2c(RSCS_BMP280_I2C_ADDR_LOW/*!!!*/);			//создание дескриптора
-	rscs_bmp280_setup(bmp280, parameters);									//запись параметров
-	rscs_bmp280_changemode(bmp280, RSCS_BMP280_MODE_NORMAL);				//установка режима NORMAL, постоянные измерения
+	rscs_bmp280_parameters_t parameters;
+	parameters.pressure_oversampling = RSCS_BMP280_OVERSAMPLING_X4;		//4		16		измерения на один результат
+	parameters.temperature_oversampling = RSCS_BMP280_OVERSAMPLING_X2;	//1		2		измерение на один результат
+	parameters.standbytyme = RSCS_BMP280_STANDBYTIME_500US;				//0.5ms	62.5ms	время между 2 измерениями
+	parameters.filter = RSCS_BMP280_FILTER_X16;							//x16	x16		фильтр
+
+	bmp280 = rscs_bmp280_initi2c(RSCS_BMP280_I2C_ADDR_LOW);				//создание дескриптора
+	rscs_bmp280_setup(bmp280, &parameters);								//запись параметров
+	rscs_bmp280_changemode(bmp280, RSCS_BMP280_MODE_NORMAL);			//установка режима NORMAL, постоянные измерения
 
 	/*инициализация MPU9255*/
 	MPU9255_init();
 
+	/*инициализация ADXL345*/
+	adxl345 = rscs_adxl345_initi2c(RSCS_ADXL345_ADDR_ALT);
+	rscs_adxl345_set_range(adxl345, RSCS_ADXL345_RANGE_2G);
+	rscs_adxl345_set_rate(adxl345, RSCS_ADXL345_RATE_100HZ);
 
 	/*инициализация таймеров*/
 	rscs_time_init();	//таймер времени
 	timer1PWMInit();	//таймер для ШИМ
 
-
-	/*инициализация радиопередатчика*/
-	transmition_init();
 }
 
 
@@ -70,10 +82,12 @@ void kinematicInit()
 {
 	state STATE_ = {
 					{0, 0, 0},			//ускорения в единицах g (в ССК)
+					{0, 0, 0},			//ускорения в единицах g (в ССК) альтернативное	FIXME:ВРЕМЕННО
 					{0, 0, 0},			//угловые скорости в degps (в ССК)
 					{0, 0, 0},			//косинусы углов вектора магнитного поля с осями ССК
 					 0,					//высота по давлению
-					 100376.0,					//нулевое давление
+					 0,
+					 0,					//нулевое давление
 					 0,					//температура 		FIXME:ВРЕМЕННО
 					 0,					//температура 		FIXME:ВРЕМЕННО
 
@@ -88,17 +102,18 @@ void kinematicInit()
 
 					{0, 0, 0},			//единичный вектор магнитного поля
 					 0,					//состояние
-					 0					//время
+					 0,	0				//время
 	};
 
 	STATE = STATE_;
 
 	transmit_data TRANSMIT_DATA_ = {
-					{0, 0, 0},			//ускорения
-					{0, 0, 0},			//угловые сколости
-					{0, 0, 0},			//вектор магноитного поля
-					 0,					//температура с термометра
+					{0, 0, 0},			//ускорения c MPU9255
+					{0, 0, 0},			//ускорения с ADXL345
+					{0, 0, 0},			//угловые скорости
+					{0, 0, 0},			//вектор магнитного поля
 					 0,					//температура с барометра
+					 0,					//температура с термометра
 					 0					//давление
 	};
 
@@ -109,16 +124,17 @@ void kinematicInit()
 
 void RSC_to_ISC_recalc(float * RSC_vect, float * ISC_vect)
 {
+	//iauRxp(STATE.f_XYZ, RSC_vect, ISC_vect);
+
 	ISC_vect[0] = RSC_vect[0] * STATE.f_XYZ[0][0] + RSC_vect[1] * STATE.f_XYZ[0][1] + RSC_vect[2] * STATE.f_XYZ[0][2];
 	ISC_vect[1] = RSC_vect[0] * STATE.f_XYZ[1][0] + RSC_vect[1] * STATE.f_XYZ[1][1] + RSC_vect[2] * STATE.f_XYZ[1][2];
 	ISC_vect[2] = RSC_vect[0] * STATE.f_XYZ[2][0] + RSC_vect[1] * STATE.f_XYZ[2][1] + RSC_vect[2] * STATE.f_XYZ[2][2];
+
 }
-
-
 
 void set_ISC_offset()
 {
-	rscs_e error1, error2;
+	rscs_e error1;
 	float dummy1;
 	int16_t dummy2;
 	int16_t accel_raw_XYZ[3];
@@ -129,9 +145,10 @@ void set_ISC_offset()
 
 
 	error1 = MPU9255_read_imu(accel_raw_XYZ, &dummy2);
-	error2 = MPU9255_recalc_accel(accel_raw_XYZ, accel_XYZ);
+	MPU9255_recalc_accel(accel_raw_XYZ, accel_XYZ);
 
-	while ((error1 & error2) != 0)
+
+	while (error1 != 0)
 	{
 		iauPn(accel_XYZ, &dummy1, g_unit_vect);
 
@@ -142,9 +159,9 @@ void set_ISC_offset()
 		STATE.f_XYZ[2][2] = - g_unit_vect[2];
 
 		error1 = MPU9255_read_imu(accel_raw_XYZ, &dummy2);
-		error2 = MPU9255_recalc_accel(accel_raw_XYZ, accel_XYZ);
-
+		MPU9255_recalc_accel(accel_raw_XYZ, accel_XYZ);
 	}
+
 
 	iauPxp(x1_unit_vect, g_unit_vect, y_vect);
 	iauPn(y_vect, &dummy1, y_unit_vect);
@@ -162,26 +179,25 @@ void set_ISC_offset()
 
 }
 
-
 void set_magn_dir()
 {
-	rscs_e error1, error2;
+	rscs_e error1;
 	int16_t compass_raw_XYZ[3];
 	float compass_XYZ[3];
 	float dummy1;
 	float B_unit_vect[3];
 
 	error1 = MPU9255_read_compass(compass_raw_XYZ);
-	error2 = MPU9255_recalc_compass(compass_raw_XYZ, compass_XYZ);
+	MPU9255_recalc_compass(compass_raw_XYZ, compass_XYZ);
 
-	while ((error1 & error2) != 0)
+	while (error1 != 0)
 	{
 		iauPn(compass_XYZ, &dummy1, B_unit_vect);
 
 		RSC_to_ISC_recalc(B_unit_vect, STATE.B_XYZ);
 
 		error1 = MPU9255_read_compass(compass_raw_XYZ);
-		error2 = MPU9255_recalc_compass(compass_raw_XYZ, compass_XYZ);
+		MPU9255_recalc_compass(compass_raw_XYZ, compass_XYZ);
 	}
 }
 
@@ -232,8 +248,8 @@ void set_zero_pressure()
 	int32_t raw_pressure32, raw_temp32, pressure32, temp32;
 	rscs_bmp280_read(bmp280, &raw_pressure32, &raw_temp32);
 
-	calibrate_values = rscs_bmp280_get_calibration_values(bmp280);
-	rscs_bmp280_calculate(calibrate_values, raw_pressure32, raw_temp32, &pressure32, &temp32);
+	const rscs_bmp280_calibration_values_t * calibrate_values_ = rscs_bmp280_get_calibration_values(bmp280);
+	rscs_bmp280_calculate(calibrate_values_, raw_pressure32, raw_temp32, &pressure32, &temp32);
 
 	STATE.zero_pressure = (float)pressure32;
 }
@@ -241,7 +257,7 @@ void set_zero_pressure()
 void pressure_read_recon(int16_t * raw_pressure, int16_t * raw_temp, float * height, float * temp)
 {
 	int32_t raw_pressure32, raw_temp32, pressure32, temp32;
-	/*rscs_e error = */rscs_bmp280_read(bmp280, &raw_pressure32, &raw_temp32);
+	rscs_bmp280_read(bmp280, &raw_pressure32, &raw_temp32);
 
 	*raw_pressure = (int16_t)(raw_pressure32 >> 4);
 	*raw_temp = (int16_t)(raw_temp32 >> 4);
@@ -250,18 +266,18 @@ void pressure_read_recon(int16_t * raw_pressure, int16_t * raw_temp, float * hei
 
 	rscs_bmp280_calculate(calibrate_values, raw_pressure32, raw_temp32, &pressure32, &temp32);
 
-	*height = 18.4 * log(STATE.zero_pressure / (float)pressure32);
+	STATE.pressure = (float)pressure32;
+	*height = 18.4 * log(STATE.zero_pressure / STATE.pressure);
 	*temp = (float)temp32 / 100;
 
-	//printf("error: %d ", error);
 }
-
 
 void pull_recon_data()
 {
 	//опрос MPU9255 и пересчет показаний
 	MPU9255_read_imu(TRANSMIT_DATA.aTransmitXYZ, TRANSMIT_DATA.gTransmitXYZ);
 	MPU9255_read_compass(TRANSMIT_DATA.cTransmitXYZ);
+	//printf("compas_error: %d\n", error);
 
 	MPU9255_recalc_accel(TRANSMIT_DATA.aTransmitXYZ, STATE.aRelatedXYZ);
 	MPU9255_recalc_gyro(TRANSMIT_DATA.gTransmitXYZ, STATE.gRelatedXYZ);
@@ -271,35 +287,39 @@ void pull_recon_data()
 	//опрос барометра bmp280
 	pressure_read_recon(&TRANSMIT_DATA.pressure, &TRANSMIT_DATA.temp1, &STATE.height, &STATE.temp_bmp280);
 
+	/*=====================================================================*/
+
 	//опрос термометра ds18b20
 	if (rscs_ds18b20_check_ready())		//проверяем, готовы ли данные
 	{
-		rscs_e error = rscs_ds18b20_read_temperature(ds18b20, &TRANSMIT_DATA.temp2);	//записываем температуру
-		printf("ds18b20_read_error: %d\n", error);
-		STATE.temp_ds18b20 = rscs_ds18b20_count_temperature(ds18b20, &TRANSMIT_DATA.temp2);
+		rscs_ds18b20_read_temperature(ds18b20, &TRANSMIT_DATA.temp2);	//записываем температуру
+		STATE.temp_ds18b20 = rscs_ds18b20_count_temperature(ds18b20, TRANSMIT_DATA.temp2);
 		rscs_ds18b20_start_conversion(ds18b20);
 	}
+	/*=====================================================================*/
 
+	//опрос акселерометра ADXL345
+	rscs_adxl345_GetGXYZ(adxl345, &TRANSMIT_DATA.ADXL_transmit[0], &TRANSMIT_DATA.ADXL_transmit[1], &TRANSMIT_DATA.ADXL_transmit[2],
+									&STATE.aALT_XYZ[0], &STATE.aALT_XYZ[1], &STATE.aALT_XYZ[2]);
+
+	STATE.previousTime = STATE.Time;
 	STATE.Time = rscs_time_get();
 }
 
-
 void set_cos_to_1(float * cosalpha)
 {
-	if (*cosalpha > 1.0)
-	{
-		*cosalpha = 1.0;
-	}
-}
+	if (*cosalpha > 1.0)	{*cosalpha = 1.0;}
+	if (*cosalpha < -1.0)	{*cosalpha = -1.0;}
 
+}
 
 void construct_trajectory()
 {
-
-	float dt = rscs_time_get() / 1000;
+	float dt = (STATE.Time - STATE.previousTime) / 1000;
 
 	//определение угловых скоростей (в ИСК)
 	RSC_to_ISC_recalc(STATE.gRelatedXYZ, STATE.w_XYZ);
+
 
 	//определение углов между осями ИСК и ССК
 	rotation_matrix ROT_M;		//FIX: Убрал обнуление структуры, так как не имеет особого смысла
@@ -341,6 +361,7 @@ void construct_trajectory()
 
 	//определение ускорений
 	RSC_to_ISC_recalc(STATE.aRelatedXYZ, STATE.a_XYZ);
+	STATE.a_XYZ[2] = STATE.a_XYZ[2] + G_VECT;
 
 	//определение скоростей
 	STATE.v_XYZ[0] = STATE.v_XYZ[0] + STATE.a_XYZ[0] * dt;
@@ -356,7 +377,6 @@ void construct_trajectory()
 
 }
 
-
 void getTranslations (float * translations)
 {
 	float * first_translations = (float*)translations;
@@ -365,7 +385,6 @@ void getTranslations (float * translations)
 	*(first_translations + 1) = STATE.s_XYZ[1];
 	*(first_translations + 2) = STATE.s_XYZ[2];
 }
-
 
 void getAngVelocity (float * angVelocity)
 {
@@ -376,7 +395,6 @@ void getAngVelocity (float * angVelocity)
 	*(first_angVelocity + 2) = STATE.w_XYZ[2];
 
 }
-
 
 void getRotationMatrix (float * RotationMatrix)
 {
