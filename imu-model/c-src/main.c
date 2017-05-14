@@ -22,6 +22,21 @@ state STATE;
 int main()
 {
 
+	/*float M[3][3] = {	{	2,	3,	7	},
+						{	-5,	4,	0	},
+						{	1,	0,	-2	}	};
+	float V[3] = {9, -4, 2};
+	float S[3];
+
+	solveSystemByKramer(*M, V, S);
+	for (int i = 0; i < 3; i++)
+	{
+		printf("Solution %d: %f", i + 1, S[i]);
+		printf("\n");
+	}
+
+	return 0;*/
+
 	/*float rstart[3] = {0,0,100};
 	float vstart[3] = {0,0,0};
 	float a[3]		= {0,0,-9.8};
@@ -62,13 +77,13 @@ int main()
 */
 
 	float time = 0;
-	float ristart[3] = {0, 0, 100}, vistart[3] = {5, 0, 0}, ai[3] = {0, 0, -9.81}, oscfrec = 0, oscmagn = 0, rotfrec = 0.1;
+	float ristart[3] = {0, 0, 100}, vistart[3] = {5, 0, 0}, ai[3] = {0, 0, -9.81}, oscfrec = 0.5, oscmagn = 1.5, rotfrec = 0.1;
 
 	model_t * MODEL = model_init_freefal(ristart, vistart, ai, oscfrec, oscmagn, rotfrec);
 	data_point_t DP;
 
 
-	kinematicInit(ai, rotfrec, ristart);
+	kinematicInit(ai, rotfrec, ristart, vistart);
 
 	DP = model_evaluate(MODEL, time);
 	float g_offset[3] = {0};
@@ -83,39 +98,49 @@ int main()
 		STATE.aRelatedXYZ[1] = DP.obsData.af[1] + g_offset[1];
 		STATE.aRelatedXYZ[2] = DP.obsData.af[2] + g_offset[2];
 
-		STATE.w_XYZ[0] = DP.obsData.wf[0];
-		STATE.w_XYZ[1] = DP.obsData.wf[1];
-		STATE.w_XYZ[2] = DP.obsData.wf[2];
+		STATE.gRelatedXYZ[0] = DP.obsData.wf[0];
+		STATE.gRelatedXYZ[1] = DP.obsData.wf[1];
+		STATE.gRelatedXYZ[2] = DP.obsData.wf[2];
+
+		//определение угловых скоростей (в ИСК)
+		RSC_to_ISC_recalc(STATE.gRelatedXYZ, STATE.w_XYZ);
 
 		trajectoryConstruction(time);
 
-		printf("af[0]: %f\n", DP.obsData.af[0]);
-		printf("af[1]: %f\n", DP.obsData.af[1]);
-		printf("af[2]: %f\n", DP.obsData.af[2]);
-
-		printf("wf[0]: %f\n", DP.obsData.wf[0]);
-		printf("wf[1]: %f\n", DP.obsData.wf[1]);
-		printf("wf[2]: %f\n", DP.obsData.wf[2]);
-
-		printf("STATE.a_XYZ[0]: %f\n", STATE.a_XYZ[0]);
-		printf("STATE.a_XYZ[1]: %f\n", STATE.a_XYZ[1]);
-		printf("STATE.a_XYZ[2]: %f\n", STATE.a_XYZ[2]);
-
-		printf("ri[0]: %f\n", DP.trueData.ri[0]);
-		printf("ri[1]: %f\n", DP.trueData.ri[1]);
-		printf("ri[2]: %f\n", DP.trueData.ri[2]);
-
-		printf("STATE.s_XYZ[0]: %f\n", STATE.s_XYZ[0]);
-		printf("STATE.s_XYZ[1]: %f\n", STATE.s_XYZ[1]);
-		printf("STATE.s_XYZ[2]: %f\n", STATE.s_XYZ[2]);
-
-
-		printf("\n\n");
+		printf("time = %f s  ==================\n", time);
+		printf("Accelerometer\n");
+		printf("a_RSC_true: %f, %f, %f\n", DP.obsData.af[0], DP.obsData.af[1], DP.obsData.af[2]);
+		printf("a_RSC_real: %f, %f, %f\n", STATE.aRelatedXYZ[0], STATE.aRelatedXYZ[1], STATE.aRelatedXYZ[2]);
+		printf("Gyroscope\n");
+		printf("w_RSC_true: %f, %f, %f\n", DP.obsData.wf[0], DP.obsData.wf[1], DP.obsData.wf[2]);
+		printf("w_RSC_real: %f, %f, %f\n", STATE.gRelatedXYZ[0], STATE.gRelatedXYZ[1], STATE.gRelatedXYZ[2]);
+		printf("Accelerations\n");
+		printf("a_ISC_true: %f, %f, %f\n", DP.trueData.ai[0], DP.trueData.ai[1], DP.trueData.ai[2]);
+		printf("a_ISC_real: %f, %f, %f\n", STATE.a_XYZ[0], STATE.a_XYZ[1], STATE.a_XYZ[2]);
+		printf("Velocities\n");
+		printf("v_ISC_true: %f, %f, %f\n", DP.trueData.vi[0], DP.trueData.vi[1], DP.trueData.vi[2]);
+		printf("v_ISC_real: %f, %f, %f\n", STATE.v_XYZ[0], STATE.v_XYZ[1], STATE.v_XYZ[2]);
+		printf("Translations\n");
+		printf("s_ISC_true: %f, %f, %f\n", DP.trueData.ri[0], DP.trueData.ri[1], DP.trueData.ri[2]);
+		printf("s_ISC_real: %f, %f, %f\n", STATE.s_XYZ[0], STATE.s_XYZ[1], STATE.s_XYZ[2]);
+		printf("Angle velocities\n");
+		printf("w_ISC_real: %f, %f, %f\n", STATE.w_XYZ[0], STATE.w_XYZ[1], STATE.w_XYZ[2]);
+		printf("Rotation Matrix\n");
+		printf("(%f / %f), (%f / %f), (%f / %f)\n",	DP.trueData.f_to_i[0][0], STATE.f_XYZ[0][0],
+													DP.trueData.f_to_i[0][1], STATE.f_XYZ[0][1],
+													DP.trueData.f_to_i[0][2], STATE.f_XYZ[0][2]);
+		printf("(%f / %f), (%f / %f), (%f / %f)\n",	DP.trueData.f_to_i[1][0], STATE.f_XYZ[1][0],
+													DP.trueData.f_to_i[1][1], STATE.f_XYZ[1][1],
+													DP.trueData.f_to_i[1][2], STATE.f_XYZ[1][2]);
+		printf("(%f / %f), (%f / %f), (%f / %f)\n",	DP.trueData.f_to_i[2][0], STATE.f_XYZ[2][0],
+													DP.trueData.f_to_i[2][1], STATE.f_XYZ[2][1],
+													DP.trueData.f_to_i[2][2], STATE.f_XYZ[2][2]);
+		printf("\n");
 
 		g_offset[0] = 0;
 		g_offset[1] = 0;
 		g_offset[2] = 0;
-		time += 1;
+		time += 0.1;
 	}
 
 	printf("last ri[2]: %f", DP.trueData.ri[2]);
