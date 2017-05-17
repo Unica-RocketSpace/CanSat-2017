@@ -113,9 +113,6 @@
 // Настройки зависят от микроконтроллера - это пины, на которые выведены каналы захвата-сравнения таймера 1
 #ifdef __AVR_ATmega328P__
 
-#define RSCS_SERVO_PORT (PORTC)
-#define RSCS_SERVO_PORT_DDR (DDRC)
-
 #elif defined __AVR_ATmega128__
 
 #define RSCS_SERVO_PORT (PORTA)
@@ -139,7 +136,7 @@
 // Настройки модуля BMP280
 // ========================================================
 //Выбор интерфейса обмена (SPI или I2C) (раскомментируйте нужный)
-#define RSCS_BMP280_IF_I2C
+//#define RSCS_BMP280_IF_I2C
 //#define RSCS_BMP280_IF_SPI
 
 #ifdef RSCS_BMP280_IF_SPI
@@ -161,6 +158,25 @@
 #define ADXL345_CS_DDR			DDRB	// регистр DDR порта, на котором расположен CS пин
 #define ADXL345_CS_PORT			PORTB	// регистр PORT порта, на котором расположен CS пин
 #define ADXL345_CS_PIN			4		// номер пина CS в порту
+
+
+
+// ========================================================
+// Настройки дебажных макросов
+// ========================================================
+#ifdef RSCS_DEBUGMODE
+
+#define RSCS_DEBUG_INIT(UART) stdin = stdout = rscs_make_uart_stream(UART); //инициализация дебага, принимает rscs_uart_bus_t *
+
+#define RSCS_DEBUG printf //предполагается писать этот макрос вместо дебажного printf
+
+#else
+
+#define RSCS_DEBUG_INIT(UART) (void) UART;
+
+#define RSCS_DEBUG (void) //и в случае отключения дебага просто не делать ничего
+
+#endif //#ifdef RSCS_DEBUGMODE
 
 
 

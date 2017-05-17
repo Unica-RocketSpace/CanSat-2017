@@ -88,7 +88,7 @@ int main()
 		printf("ADDITIONAL MISSION\n");
 		printf("Accelerations    (MPU9255): %f, %f, %f  [m/s^2]\n", STATE.aRelatedXYZ[0], STATE.aRelatedXYZ[1], STATE.aRelatedXYZ[2]);
 		printf("Angle velocities (MPU9255): %f, %f, %f  [1/s]\n", STATE.gRelatedXYZ[0], STATE.gRelatedXYZ[1], STATE.gRelatedXYZ[2]);
-		//printf("Magnetic vector  (MPU9255): %f, %f, %f  [-]\n", STATE.cRelatedXYZ[0], STATE.cRelatedXYZ[1], STATE.cRelatedXYZ[2]);
+		printf("Magnetic vector  (MPU9255): %f, %f, %f  [-]\n", STATE.cRelatedXYZ[0], STATE.cRelatedXYZ[1], STATE.cRelatedXYZ[2]);
 		printf("=============END OF PACKAGE=============\n\n");
 
 

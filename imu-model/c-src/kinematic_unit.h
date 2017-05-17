@@ -27,9 +27,15 @@ typedef struct
 {
 
 	float aRelatedXYZ[3];	//ускорения в единицах g (в ССК)
+	float aALT_XYZ[3];		//ускорения в единицах g (в ССК) альтернативное	FIXME:ВРЕМЕННО
 	float gRelatedXYZ[3];	//угловые скорости в degps (в ССК)
 	float cRelatedXYZ[3];	//косинусы углов вектора магнитного поля с осями ССК
+	float height;
+	float zero_pressure;
 	float pressure;
+	float temp_bmp280;			//FIXME: ВРЕМЕННО! после проверки убрать
+	float temp_ds18b20;			//FIXME: ВРЕМЕННО! после проверки убрать
+
 
 	float a_XYZ[3];			//ускорения в м/с^2 (ИСК)
 	float a_XYZ_prev[3];	//ускорения в м/с^2 (ИСК) предыдущие
@@ -46,8 +52,10 @@ typedef struct
 	//Единичный вектор магнитного поля
 	float B_XYZ[3];
 
-	float time;				//время текущей итерации
-	float previous_time;	//время предыдущей итерации
+	uint8_t state;		//состояние, можно писать интересующие биты
+
+	uint32_t Time;
+	uint32_t previous_time;
 
 }state;
 
@@ -118,7 +126,7 @@ void getAngVelocity (float * angVelocity);
 //ПАРАМЕТР:		* RotationMatrix - ссылка на массив[9], в который будут записаны косинусы углов поворота ССК относительно ИСК (-)
 void getRotationMatrix (float * RotationMatrix);
 
-//РЕШАЕТ СИСТЕМУ УРАВНЕНИЯ МЕТОДОМ КРАМЕРА
+//РЕШАЕТ СИСТЕМУ ЛИНЕЙНЫХ УРАВНЕНИЙ МЕТОДОМ КРАМЕРА
 //ПАРАМЕТР:		* matrix - ссылка на массив[3][3] множителей переменных
 //ПАРАМЕТР:		* vector - ссылка на вектор[3] свободных членов
 //ПАРАМЕТР:		* solution_vect - ссылка на вектор[3], в который будет записано решение

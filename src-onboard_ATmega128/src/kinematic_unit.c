@@ -80,30 +80,40 @@ void hardwareInit(void)
 
 void kinematicInit()
 {
-	state STATE_ = {
-					{0, 0, 0},			//ускорения в единицах g (в ССК)
-					{0, 0, 0},			//ускорения в единицах g (в ССК) альтернативное	FIXME:ВРЕМЕННО
-					{0, 0, 0},			//угловые скорости в degps (в ССК)
-					{0, 0, 0},			//косинусы углов вектора магнитного поля с осями ССК
-					 0,					//высота по давлению
-					 0,
-					 0,					//нулевое давление
-					 0,					//температура 		FIXME:ВРЕМЕННО
-					 0,					//температура 		FIXME:ВРЕМЕННО
+	state STATE_;
+	STATE_.aRelatedXYZ[0] = 0;	STATE_.aRelatedXYZ[1] = 0;	STATE_.aRelatedXYZ[2] = 0;
+	STATE_.aALT_XYZ[0] = 0;		STATE_.aALT_XYZ[1] = 0;		STATE_.aALT_XYZ[2] = 0;
+	STATE_.gRelatedXYZ[0] = 0;	STATE_.gRelatedXYZ[1] = 0;	STATE_.gRelatedXYZ[2] = 0;
+	STATE_.cRelatedXYZ[0] = 0;	STATE_.cRelatedXYZ[1] = 0;	STATE_.cRelatedXYZ[2] = 0;
 
-					{0, 0, 0},			//ускорения в м/с^2 (ИСК)
-					{0, 0, 0},			//скорости в м/с (ИСК)
-					{0, 0, 0},			//перемещения в м (ИСК)
-					{0, 0, 0},			//угловые скорости в 1/с (ИСК)
+	STATE_.height = 0;
+	STATE_.zero_pressure = 0;
+	STATE_.pressure = 0;
 
-				{	{1, 0, 0},			//косинусы углов оси Х ИСК с осями ССК
-					{0, 1, 0},			//косинусы углов оси Y ИСК с осями ССК
-					{0, 0, 1}	},		//косинусы углов оси Z ИСК с осями ССК
+	STATE_.temp_bmp280 = 0;		STATE_.temp_ds18b20 = 0;
 
-					{0, 0, 0},			//единичный вектор магнитного поля
-					 0,					//состояние
-					 0,	0				//время
-	};
+	STATE_.a_XYZ[0] = 0;		STATE_.a_XYZ[1] = 0;		STATE_.a_XYZ[2] = 0;
+	STATE_.a_XYZ_prev[0] = 0;	STATE_.a_XYZ_prev[1] = 0;	STATE_.a_XYZ_prev[2] = 0;
+	STATE_.v_XYZ[0] = 0;		STATE_.v_XYZ[1] = 0;		STATE_.v_XYZ[2] = 0;
+	STATE_.v_XYZ_prev[0] = 0;	STATE_.v_XYZ_prev[1] = 0;	STATE_.v_XYZ_prev[2] = 0;
+	STATE.s_XYZ[0] = 0;			STATE.s_XYZ[1] = 0;			STATE.s_XYZ[2] = 0;
+	STATE_.w_XYZ[0] = 0;		STATE_.w_XYZ[1] = 0;		STATE_.w_XYZ[2] = 0;
+	STATE_.w_XYZ_prev[0] = 0;	STATE_.w_XYZ_prev[1] = 0;	STATE_.w_XYZ_prev[2] = 0;
+
+	STATE_.f_XYZ[0][0] = 1;		STATE_.f_XYZ[0][1] = 0;		STATE_.f_XYZ[0][2] = 0;
+	STATE_.f_XYZ[1][0] = 0;		STATE_.f_XYZ[1][1] = 1;		STATE_.f_XYZ[1][2] = 0;
+	STATE_.f_XYZ[2][0] = 0;		STATE_.f_XYZ[2][1] = 0;		STATE_.f_XYZ[2][2] = 1;
+
+	STATE_.f_XYZ_prev[0][0] = 1;	STATE_.f_XYZ_prev[0][1] = 0;	STATE_.f_XYZ_prev[0][2] = 0;
+	STATE_.f_XYZ_prev[1][0] = 0;	STATE_.f_XYZ_prev[1][1] = 1;	STATE_.f_XYZ_prev[1][2] = 0;
+	STATE_.f_XYZ_prev[2][0] = 0;	STATE_.f_XYZ_prev[2][1] = 0;	STATE_.f_XYZ_prev[2][2] = 1;
+
+	STATE_.B_XYZ[0] = 0;		STATE_.B_XYZ[1] = 0;		STATE_.B_XYZ[2] = 0;
+
+	STATE_.state = 0;
+
+	STATE_.Time = 0;
+	STATE_.previousTime = 0;
 
 	STATE = STATE_;
 
@@ -315,66 +325,153 @@ void set_cos_to_1(float * cosalpha)
 
 void construct_trajectory()
 {
+
 	float dt = (STATE.Time - STATE.previousTime) / 1000;
 
 	//определение угловых скоростей (в ИСК)
 	RSC_to_ISC_recalc(STATE.gRelatedXYZ, STATE.w_XYZ);
 
-
 	//определение углов между осями ИСК и ССК
-	rotation_matrix ROT_M;		//FIX: Убрал обнуление структуры, так как не имеет особого смысла
+	float free_vector[3], solution_vector[3];
+	float components_matrix[3][3];
+	//находим первый столбец матрицы поворота
+	free_vector[0] = STATE.f_XYZ[0][0] + (STATE.f_XYZ_prev[1][0] * STATE.w_XYZ_prev[2] - STATE.f_XYZ_prev[2][0] * STATE.w_XYZ_prev[1]) * dt / 2;
+	free_vector[1] = STATE.f_XYZ[1][0] + (STATE.f_XYZ_prev[2][0] * STATE.w_XYZ_prev[0] - STATE.f_XYZ_prev[0][0] * STATE.w_XYZ_prev[2]) * dt / 2;
+	free_vector[2] = STATE.f_XYZ[2][0] + (STATE.f_XYZ_prev[0][0] * STATE.w_XYZ_prev[1] - STATE.f_XYZ_prev[1][0] * STATE.w_XYZ_prev[0]) * dt / 2;
 
-	ROT_M.f_XYZ[0][0] = STATE.f_XYZ[0][0] + (STATE.f_XYZ[0][1] * STATE.w_XYZ[2] - STATE.f_XYZ[0][2] * STATE.w_XYZ[1]) * dt;
-	ROT_M.f_XYZ[0][1] = STATE.f_XYZ[0][1] + (STATE.f_XYZ[0][2] * STATE.w_XYZ[0] - STATE.f_XYZ[0][0] * STATE.w_XYZ[2]) * dt;
-	ROT_M.f_XYZ[0][2] = STATE.f_XYZ[0][2] + (STATE.f_XYZ[0][0] * STATE.w_XYZ[1] - STATE.f_XYZ[0][1] * STATE.w_XYZ[0]) * dt;
-	ROT_M.f_XYZ[1][0] = STATE.f_XYZ[1][0] + (STATE.f_XYZ[1][1] * STATE.w_XYZ[2] - STATE.f_XYZ[1][2] * STATE.w_XYZ[1]) * dt;
-	ROT_M.f_XYZ[1][1] = STATE.f_XYZ[1][1] + (STATE.f_XYZ[1][2] * STATE.w_XYZ[0] - STATE.f_XYZ[1][0] * STATE.w_XYZ[2]) * dt;
-	ROT_M.f_XYZ[1][2] = STATE.f_XYZ[1][2] + (STATE.f_XYZ[1][0] * STATE.w_XYZ[1] - STATE.f_XYZ[1][1] * STATE.w_XYZ[0]) * dt;
+	components_matrix[0][0] =   1;
+	components_matrix[0][1] = - STATE.w_XYZ[2] * dt / 2;
+	components_matrix[0][2] =   STATE.w_XYZ[1] * dt / 2;
+	components_matrix[1][0] =   STATE.w_XYZ[2] * dt / 2;
+	components_matrix[1][1] =   1;
+	components_matrix[1][2] = - STATE.w_XYZ[0] * dt / 2;
+	components_matrix[2][0] = - STATE.w_XYZ[1] * dt / 2;
+	components_matrix[2][1] =   STATE.w_XYZ[0] * dt / 2;
+	components_matrix[2][2] =   1;
 
-	ROT_M.f_XYZ[2][2] =  ROT_M.f_XYZ[0][0] * ROT_M.f_XYZ[1][1] - ROT_M.f_XYZ[0][1] * ROT_M.f_XYZ[1][0];
-	ROT_M.f_XYZ[2][0] = (ROT_M.f_XYZ[0][0] * ROT_M.f_XYZ[0][2] + ROT_M.f_XYZ[1][0] * ROT_M.f_XYZ[1][2]) / ROT_M.f_XYZ[2][2];
-	ROT_M.f_XYZ[2][1] = (ROT_M.f_XYZ[0][1] * ROT_M.f_XYZ[0][2] + ROT_M.f_XYZ[1][1] * ROT_M.f_XYZ[1][2]) / ROT_M.f_XYZ[2][2];
-
-
-	set_cos_to_1(&ROT_M.f_XYZ[0][0]);
-	set_cos_to_1(&ROT_M.f_XYZ[0][1]);
-	set_cos_to_1(&ROT_M.f_XYZ[0][2]);
-	set_cos_to_1(&ROT_M.f_XYZ[1][0]);
-	set_cos_to_1(&ROT_M.f_XYZ[1][1]);
-	set_cos_to_1(&ROT_M.f_XYZ[1][2]);
-	set_cos_to_1(&ROT_M.f_XYZ[2][0]);
-	set_cos_to_1(&ROT_M.f_XYZ[2][1]);
-	set_cos_to_1(&ROT_M.f_XYZ[2][2]);
+	solveSystemByKramer(*components_matrix, free_vector, solution_vector);
+	STATE.f_XYZ[0][0] = solution_vector[0];
+	STATE.f_XYZ[1][0] = solution_vector[1];
+	STATE.f_XYZ[2][0] = solution_vector[2];
+	printf("f_XYZ[0] = %f\n", sqrt(pow(STATE.f_XYZ[0][0],2) + pow(STATE.f_XYZ[1][0],2) + pow(STATE.f_XYZ[2][0],2)));
 
 
-	//обновление функций углов в STATE
-	STATE.f_XYZ[0][0] = ROT_M.f_XYZ[0][0];
-	STATE.f_XYZ[0][1] = ROT_M.f_XYZ[0][1];
-	STATE.f_XYZ[0][2] = ROT_M.f_XYZ[0][2];
-	STATE.f_XYZ[1][0] = ROT_M.f_XYZ[1][0];
-	STATE.f_XYZ[1][1] = ROT_M.f_XYZ[1][1];
-	STATE.f_XYZ[1][2] = ROT_M.f_XYZ[1][2];
-	STATE.f_XYZ[2][0] = ROT_M.f_XYZ[2][0];
-	STATE.f_XYZ[2][1] = ROT_M.f_XYZ[2][1];
-	STATE.f_XYZ[2][2] = ROT_M.f_XYZ[2][2];
+	//находим второй столбец матрицы поворота
+	free_vector[0] = STATE.f_XYZ[0][1] + (STATE.f_XYZ_prev[1][1] * STATE.w_XYZ_prev[2] - STATE.f_XYZ_prev[2][1] * STATE.w_XYZ_prev[1]) * dt / 2;
+	free_vector[1] = STATE.f_XYZ[1][1] + (STATE.f_XYZ_prev[2][1] * STATE.w_XYZ_prev[0] - STATE.f_XYZ_prev[0][1] * STATE.w_XYZ_prev[2]) * dt / 2;
+	free_vector[2] = STATE.f_XYZ[2][1] + (STATE.f_XYZ_prev[0][1] * STATE.w_XYZ_prev[1] - STATE.f_XYZ_prev[1][1] * STATE.w_XYZ_prev[0]) * dt / 2;
 
+	components_matrix[0][0] =   1;
+	components_matrix[0][1] = - STATE.w_XYZ[2] * dt / 2;
+	components_matrix[0][2] =   STATE.w_XYZ[1] * dt / 2;
+	components_matrix[1][0] =   STATE.w_XYZ[2] * dt / 2;
+	components_matrix[1][1] =   1;
+	components_matrix[1][2] = - STATE.w_XYZ[0] * dt / 2;
+	components_matrix[2][0] = - STATE.w_XYZ[1] * dt / 2;
+	components_matrix[2][1] =   STATE.w_XYZ[0] * dt / 2;
+	components_matrix[2][2] =   1;
+
+	solveSystemByKramer(*components_matrix, free_vector, solution_vector);
+	STATE.f_XYZ[0][1] = solution_vector[0];
+	STATE.f_XYZ[1][1] = solution_vector[1];
+	STATE.f_XYZ[2][1] = solution_vector[2];
+	printf("f_XYZ[1] = %f\n", sqrt(pow(STATE.f_XYZ[0][1],2) + pow(STATE.f_XYZ[1][1],2) + pow(STATE.f_XYZ[2][1],2)));
+
+
+	//находим третий столбец матрицы поворота из условия ортогональности векторов
+	STATE.f_XYZ[2][2] =  STATE.f_XYZ[0][0] * STATE.f_XYZ[1][1] - STATE.f_XYZ[1][0] * STATE.f_XYZ[0][1];
+	STATE.f_XYZ[0][2] = (STATE.f_XYZ[0][0] * STATE.f_XYZ[2][0] + STATE.f_XYZ[0][1] * STATE.f_XYZ[2][1]) / STATE.f_XYZ[2][2];
+	STATE.f_XYZ[1][2] = (STATE.f_XYZ[1][0] * STATE.f_XYZ[2][0] + STATE.f_XYZ[1][1] * STATE.f_XYZ[2][1]) / STATE.f_XYZ[2][2];
+	printf("f_XYZ[2] = %f\n", sqrt(pow(STATE.f_XYZ[0][2],2) + pow(STATE.f_XYZ[1][2],2) + pow(STATE.f_XYZ[2][2],2)));
+
+	set_cos_to_1(&STATE.f_XYZ[0][0]);
+	set_cos_to_1(&STATE.f_XYZ[0][1]);
+	set_cos_to_1(&STATE.f_XYZ[0][2]);
+	set_cos_to_1(&STATE.f_XYZ[1][0]);
+	set_cos_to_1(&STATE.f_XYZ[1][1]);
+	set_cos_to_1(&STATE.f_XYZ[1][2]);
+	set_cos_to_1(&STATE.f_XYZ[2][0]);
+	set_cos_to_1(&STATE.f_XYZ[2][1]);
+	set_cos_to_1(&STATE.f_XYZ[2][2]);
 
 	//определение ускорений
 	RSC_to_ISC_recalc(STATE.aRelatedXYZ, STATE.a_XYZ);
-	STATE.a_XYZ[2] = STATE.a_XYZ[2] + G_VECT;
 
 	//определение скоростей
-	STATE.v_XYZ[0] = STATE.v_XYZ[0] + STATE.a_XYZ[0] * dt;
-	STATE.v_XYZ[1] = STATE.v_XYZ[1] + STATE.a_XYZ[1] * dt;
-	STATE.v_XYZ[2] = STATE.v_XYZ[2] + STATE.a_XYZ[2] * dt;
+	STATE.v_XYZ[0] = STATE.v_XYZ[0] + (STATE.a_XYZ_prev[0] + STATE.a_XYZ[0]) * dt / 2;
+	STATE.v_XYZ[1] = STATE.v_XYZ[1] + (STATE.a_XYZ_prev[1] + STATE.a_XYZ[1]) * dt / 2;
+	STATE.v_XYZ[2] = STATE.v_XYZ[2] + (STATE.a_XYZ_prev[2] + STATE.a_XYZ[2]) * dt / 2;
 
 
 	//расчет перемещений
-	STATE.s_XYZ[0] = STATE.s_XYZ[0] + STATE.v_XYZ[0] * dt + STATE.a_XYZ[0] * dt * dt / 2;
-	STATE.s_XYZ[1] = STATE.s_XYZ[1] + STATE.v_XYZ[1] * dt + STATE.a_XYZ[1] * dt * dt / 2;
-	//STATE.s_XYZ[2] = STATE.s_XYZ[2] + STATE.v_XYZ[2] * dt + STATE.a_XYZ[2] * dt * dt / 2;
-	STATE.s_XYZ[2] = STATE.height;	//записывает в STATE.sZ значение высоты
+	STATE.s_XYZ[0] = STATE.s_XYZ[0] + (STATE.v_XYZ_prev[0] + STATE.v_XYZ[0]) * dt / 2;
+	STATE.s_XYZ[1] = STATE.s_XYZ[1] + (STATE.v_XYZ_prev[1] + STATE.v_XYZ[1]) * dt / 2;
+	STATE.s_XYZ[2] = STATE.s_XYZ[2] + (STATE.v_XYZ_prev[2] + STATE.v_XYZ[2]) * dt / 2;
 
+	for (int i = 0; i < 3; i++)
+	{
+		STATE.a_XYZ_prev[i] = STATE.a_XYZ[i];
+		STATE.v_XYZ_prev[i] = STATE.v_XYZ[i];
+		STATE.w_XYZ_prev[i] = STATE.w_XYZ[i];
+		for (int j = 0; j < 3; j++)
+		{
+			STATE.f_XYZ_prev[i][j] = STATE.f_XYZ[i][j];
+		}
+	}
+	STATE.previousTime = STATE.Time;
+}
+
+
+void solveSystemByKramer (float * Matrix, float * vector, float * solution_vect)
+{
+	float det, det1, det2, det3;
+
+	det = getDeterminant(Matrix);
+
+	replaceColumn(Matrix, vector, 0);
+	det1 = getDeterminant(Matrix);
+	replaceColumn(Matrix, vector, 0);
+
+	replaceColumn(Matrix, vector, 1);
+	det2 = getDeterminant(Matrix);
+	replaceColumn(Matrix, vector, 1);
+
+	replaceColumn(Matrix, vector, 2);
+	det3 = getDeterminant(Matrix);
+	replaceColumn(Matrix, vector, 2);
+
+	*(solution_vect + 0) = det1 / det;
+	*(solution_vect + 1) = det2 / det;
+	*(solution_vect + 2) = det3 / det;
+}
+
+
+void replaceColumn (float * Matrix, float * vector, int column_n)
+{
+	float temp;
+	for (int i = 0; i < 3; i++)
+	{
+		temp = *(Matrix + column_n + 3 * i);
+		*(Matrix + column_n + 3 * i) = *(vector + i);
+		*(vector + i) = temp;
+	}
+}
+
+
+float getDeterminant (float * Matrix)
+{
+	float det = 0;
+	int i, j, k;
+
+	for (i = 0; i < 3; i++)
+	{
+		j = i + 1;
+		if (j >= 3) j = j - 3;
+		k = i + 2;
+		if (k >= 3) k = k - 3;
+		det += *(Matrix + i) * (*(Matrix + 3 + j) * *(Matrix + 6 + k) - *(Matrix + 3 + k) * *(Matrix + 6 + j));
+	}
+	return det;
 }
 
 void getTranslations (float * translations)
