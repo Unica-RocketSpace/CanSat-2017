@@ -23,7 +23,6 @@
 #define MARKER_SIZE		4
 
 const char FRAME_HEADER[] = "P6 256 256 255 ";
-//int FRAME_HEADER1[11] = {0x50, 0x36, 0x0A, 0x3, 0x20, 0x33, 0x0A, 0x32, 0x35, 0x35, 0x0A};
 
 /*заполнение файла некоторыми данными; получает на вход путь файла, который надо заполнить*/
 void generateStream(const char * path)
@@ -37,9 +36,9 @@ void generateStream(const char * path)
 
 	fwrite(&start_frame, MARKER_SIZE, 1, file);
 
-	for (int i = 0; i < 1; i++)
+	for (int i = 0; i < 10; i++)
 	{
-		for (int j = 0; j < 1; j++)
+		for (int j = 0; j < 10; j++)
 		{
 			data[i][j] = (i + 1) * (j + 1);
 			fwrite(&data[i][j], 2, 1, file);
@@ -86,7 +85,7 @@ int main()
 	printf("Размер потока видео: %d байт(а)\n", pointer);
 
 	//выделяем в динамической памяти массив элементов uint16_t длины pointer и создаем указатель на него
-	uint16_t * stream_uint = (uint16_t*)malloc(pointer / 2);
+	uint16_t * stream_uint = (uint16_t*)malloc(pointer);
 
 	fseek(file_stream, 0, SEEK_SET);					//перемещаем указатель в начало файла
 	fread(stream_uint, 2 * pointer, 1, file_stream);	//читаем из file_stream в созданный массив stream_uint один раз pointer бит
@@ -100,6 +99,7 @@ int main()
 		{
 			i = i + 2;
 			int k = 0;
+			uint8_t red, green, blue;
 			fwrite(FRAME_HEADER, strlen(FRAME_HEADER), 1, file_frame);
 			//fwrite(&FRAME_HEADER, 1, 11, file_frame);
 			printf("Найдено начало кадра\n");
@@ -117,7 +117,25 @@ int main()
 					printf("Найден конец кадра [записано %d пикс.]\n", k);
 					goto end;
 				}
-				fwrite(&stream_uint[i], 2, 1, file_frame);
+
+				red = (uint16_t)(stream_uint[i] >> 11);
+				red = (uint8_t)(red * 255 / 31);
+
+				green = (uint16_t)((uint16_t)(stream_uint[i] << 5) >> 10);
+				green = (uint8_t)(green * 255 / 63);
+
+
+				blue = (uint16_t)((uint16_t)(stream_uint[i] << 11) >> 11);
+				blue = (uint8_t)(blue * 255 / 31);
+
+				printf("[k] = %d\n", k);
+				printf("red: %d, ", red);
+				printf("green: %d, ", green);
+				printf("blue: %d\n", blue);
+
+				fwrite(&red, 1, 1, file_frame);
+				fwrite(&green, 1, 1, file_frame);
+				fwrite(&blue, 1, 1, file_frame);
 				k++;
 			}
 
