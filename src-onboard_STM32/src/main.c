@@ -11,6 +11,10 @@
 
 #include "Timer.h"
 #include "BlinkLed.h"
+#include "stm32f10x_conf.h"
+#include "stm32f10x_usart.h"
+#include "stm32f10x.h"
+#include "core_cm3.h"
 
 // ----------------------------------------------------------------------------
 //
@@ -62,13 +66,86 @@ main(int argc, char* argv[])
   SPI_InitTypeDef InitSPI;
   
   InitSPI.SPI_Direction = SPI_Direction_2Lines_FullDuplex;	//режим передачи по двум каналам MOSI, MISO
-  InitSPI.SPI_DataSize	= SPI_DataSize_8b;	//размер пакета 8 бит
-  InitSPI.SPI_CPOL		= SPI_CPOL_Low;		//
-  InitSPI.SPI_CPHA		= SPI_CPHA_1Edge;	//
-  InitSPI.SPI_NSS		= SPI_NSS_Soft;		//управление пином CS программно
+  InitSPI.SPI_DataSize	= SPI_DataSize_8b;					//размер пакета 8 бит
+  InitSPI.SPI_CPOL		= SPI_CPOL_Low;						//
+  InitSPI.SPI_CPHA		= SPI_CPHA_1Edge;					//
+  InitSPI.SPI_NSS		= SPI_NSS_Soft;						//управление пином CS программно
   InitSPI.SPI_BaudRatePrescaler	= SPI_BaudRatePrescaler_32;	//Предделитель SCK
-  InitSPI.SPI_FirstBit	= SPI_FirstBit_MSB;	//Отправляем сначала старший бит
-  InitSPI.SPI_Mode		= SPI_Mode_Master;	//режим - мастер;
+  InitSPI.SPI_FirstBit	= SPI_FirstBit_MSB;					//Отправляем сначала старший бит
+  InitSPI.SPI_Mode		= SPI_Mode_Master;					//режим - мастер;
+
+
+  //Инициализация UART
+  GPIO_InitTypeDef PORTA_init_struct;
+  //Включаем тактирование порта A и UART1
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
+  //Настраиванм ногу TXD (PA9) как выход push-pull с альтернативной функцией
+  PORTA_init_struct.GPIO_Pin = GPIO_Pin_9;
+  PORTA_init_struct.GPIO_Speed = GPIO_Speed_50MHz;
+  PORTA_init_struct.GPIO_Mode = GPIO_Mode_AF_PP;
+  GPIO_Init(GPIOA, &PORTA_init_struct);
+
+  //Настраиваем UART
+  USART_InitTypeDef UART_struct;
+  UART_struct.USART_BaudRate 				= 9600;
+  UART_struct.USART_HardwareFlowControl		= USART_HardwareFlowControl_None;
+  UART_struct.USART_Mode					= USART_Mode_Tx;
+  UART_struct.USART_Parity					= USART_Parity_No;
+  UART_struct.USART_StopBits				= USART_StopBits_1;
+  UART_struct.USART_WordLength				= USART_WordLength_8b;
+  //Инициализируем UART1
+  USART_Init(USART1, &UART_struct);
+  //Включаем UART1
+  USART_Cmd(USART1, ENABLE);
+
+
+  //Инициализация таймера
+  TIM_TimeBaseInitTypeDef TIM_init_structure;
+  RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
+
+  //Устанавливаем предделитель (частота 24 МГц / предделитель = кол-во тактов в секунду)
+  TIM_init_structure.TIM_Prescaler = 24000 - 1;
+  //Устанавливаем значение счетчика, по достижении которого он обнулится
+  TIM_init_structure.TIM_Period = 1000;
+  TIM_TimeBaseInit(TIM2, &TIM_init_structure);
+  //Разрешаем прерывание по переполнению таймера
+  TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
+  //НАЧИНАЕМ ОТСЧЕТ
+  TIM_Cmd(TIM2, ENABLE);
+  //Разрешаем прерывание от таймера
+  NVIC_EnableIRQ(TIM2_IRQn);
+
+
+  /*//Инициализация таймера
+   RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM6, ENABLE);
+   //Устанавливаем предделитель (частота 24 МГц / предделитель = кол-во тактов в секунду)
+   TIM6->PSC = 24000 - 1;
+   //Устанавливаем значение счетчика, по достижении которого он обнулится
+   TIM6->ARR = 1000;
+   //Разрешаем прерывание от таймера
+   TIM6->DIER |= TIM_DIER_UIE;
+   //НАЧИНАЕМ ОТСЧЕТ
+   TIM6->CR1 |= TIM_CR1_CEN;
+   //
+   //NVIC_EnableIRQ();*/
+
+
+ /* while (1)
+  {
+	  while (USART_GetFlagStatus(USART1, USART_FLAG_TC) != SET)
+	  {}
+	  USART_SendData(USART1, 'H');
+  }*/
+}
+
+void TIM2_IRQHandler()
+{
+	TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+	  while (USART_GetFlagStatus(USART1, USART_FLAG_TC) != SET)
+	  {}
+	USART_SendData(USART1, 'a');
 }
 
 #pragma GCC diagnostic pop
