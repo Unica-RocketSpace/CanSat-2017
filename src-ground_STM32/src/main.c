@@ -36,6 +36,7 @@ void generateStream(const char * path)
 	uint32_t end_row		= INV_END_ROW;
 	uint32_t end_frame		= INV_END_FRAME;
 
+	int I = 0;
 	for(int k = 0; k < 150; k++)
 	{
 		fwrite(&start_frame, MARKER_SIZE, 1, file);
@@ -43,8 +44,9 @@ void generateStream(const char * path)
 		{
 			for (int j = 0; j < 256; j++)
 			{
-				data[i][j] = (i + 1 + k) * (j + 1 + k);
+				data[i][j] = I + k;
 				fwrite(&data[i][j], 2, 1, file);
+				I++;
 			}
 
 			fwrite(&end_row, MARKER_SIZE, 1, file);
@@ -114,11 +116,8 @@ int createFrame(uint16_t * stream, int length, int pointer, const char * path_fr
 				blue = (uint8_t)(blue * 255 / 31);
 
 				fwrite(&red, 1, 1, file_frame);
-				fwrite(SPACE, 1, 1, file_frame);
 				fwrite(&green, 1, 1, file_frame);
-				fwrite(SPACE, 1, 1, file_frame);
 				fwrite(&blue, 1, 1, file_frame);
-				fwrite(SPACE, 1, 1, file_frame);
 				k++;
 			}
 
