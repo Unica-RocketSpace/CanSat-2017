@@ -48,7 +48,7 @@ void print_data()
 	printf("Accelerations    (MPU9255): %f, %f, %f\n", STATE.aRelatedXYZ[0], STATE.aRelatedXYZ[1], STATE.aRelatedXYZ[2]);
 	printf("Angle velocities (MPU9255): %f, %f, %f\n", STATE.gRelatedXYZ[0], STATE.gRelatedXYZ[1], STATE.gRelatedXYZ[2]);
 	printf("Magnetic vector  (MPU9255): %f, %f, %f\n", STATE.cRelatedXYZ[0], STATE.cRelatedXYZ[1], STATE.cRelatedXYZ[2]);
-	printf("=============END OF PACKEGE=============\n\n");
+	printf("=============END OF PACKAGE=============\n\n");
 }*/
 
 int main()
