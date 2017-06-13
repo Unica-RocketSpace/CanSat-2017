@@ -20,6 +20,8 @@
 
 #include <sd.h>
 #include <dump.h>
+#include "OV7670.h"
+#include "i2c.h"
 
 // ----------------------------------------------------------------------------
 //
@@ -67,24 +69,9 @@ typedef enum
 {
 	OV7670_START_FRAME	= 0xFF7C0000,
 	OV7670_END_FRAME	= 0x007CFFFF,
-	OV7670_SE_FRAME		= 0xFF7C0000007CFFFF	//start-end
+	OV7670_SE_FRAME		= 0xFF7C0000007CFFFF	//end-start
 }ov7670_flag;
 
-//Разгон МК
-void Overclocking()
-{
-	RCC_HSICmd(ENABLE);							//включаем ВНУТРЕННИЙ генератор частоты
-	RCC_SYSCLKConfig(RCC_SYSCLKSource_HSI);		//выбираем источником тактирования внутренний генератор
-	RCC_PLLCmd(DISABLE);						//выключаем умножитель частоты
-	RCC_PLLConfig(RCC_PLLSource_HSE_Div1, RCC_PLLMul_9);	//устанавливаем множитель частоты (9) на ВНЕШНИЙ генератор
-	RCC_PLLCmd(ENABLE);							//включаем умножитель частоты
-
-	while ((RCC->CR & RCC_CR_PLLRDY) == 0);		//ждем запуска умножителя
-
-	RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);	//выбираем источником тактирования умножитель частоты
-
-	SystemCoreClockUpdate();
-}
 
 // ----- main() ---------------------------------------------------------------
 
@@ -97,6 +84,50 @@ void Overclocking()
 
 
 uint16_t string_point = 0;
+uint16_t frame_point = 0;
+
+void reset_FIFO()
+{
+	GPIOB->BSRR |= VIDEO_OE | VIDEO_WE;
+	GPIOA->BRR |= VIDEO_CLK;
+	GPIOA->BSRR |= VIDEO_CLK;
+	GPIOA->BRR |= VIDEO_RRST | VIDEO_WRST;
+	for (int i = 0; i < 50000; i++)
+	{
+		GPIOA->BRR |= VIDEO_CLK;
+		GPIOA->BSRR |= VIDEO_CLK;
+	}
+
+	GPIOA->BSRR |= VIDEO_RRST | VIDEO_WRST;
+	GPIOA->BRR |= VIDEO_CLK;
+	GPIOA->BSRR |= VIDEO_CLK;
+}
+
+void exti_enable(FunctionalState state)
+{
+	NVIC_InitTypeDef NVIC_init;
+	NVIC_init.NVIC_IRQChannel = EXTI15_10_IRQn;
+	NVIC_init.NVIC_IRQChannelCmd = state;
+	NVIC_init.NVIC_IRQChannelPreemptionPriority = 0;
+	NVIC_init.NVIC_IRQChannelSubPriority = 0;
+	NVIC_Init(&NVIC_init);
+}
+
+void camera_init()
+{
+	GPIOB->BRR |=  VIDEO_WE;//запрещаем запись в FIFO и чтение из него
+	GPIOB->BSRR |= VIDEO_OE;
+
+	GPIOA->BRR |= VIDEO_RRST | VIDEO_WRST;			//переводим маркеры чтения и записи FIFO на начало
+	for (int i = 0; i < 10; i++)					//clock-аем
+	{
+		GPIOA->BSRR |= VIDEO_CLK;
+		GPIOA->BRR |= VIDEO_CLK;
+
+	}
+	GPIOA->BSRR |= VIDEO_RRST | VIDEO_WRST;
+}
+
 
 int
 main(int argc, char* argv[])
@@ -111,196 +142,106 @@ main(int argc, char* argv[])
 	blink_led_init();
 
 	//Инициализация портов видеокамеры
-	GPIO_InitTypeDef OV7670_init;
+	GPIO_InitTypeDef OV7670_initialise;
 
-	OV7670_init.GPIO_Pin = 	VIDEO_DATA | VIDEO_HREF | VIDEO_VSYNC;
-	OV7670_init.GPIO_Speed = GPIO_Speed_50MHz;
-	OV7670_init.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-	GPIO_Init(GPIOA, &OV7670_init);
+	OV7670_initialise.GPIO_Pin = 	VIDEO_DATA | VIDEO_HREF | VIDEO_VSYNC;
+	OV7670_initialise.GPIO_Speed = GPIO_Speed_50MHz;
+	OV7670_initialise.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_Init(GPIOA, &OV7670_initialise);
 
-	OV7670_init.GPIO_Pin = VIDEO_CLK | VIDEO_RRST | VIDEO_WRST;
-	OV7670_init.GPIO_Speed = GPIO_Speed_50MHz;
-	OV7670_init.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOA, &OV7670_init);
+	OV7670_initialise.GPIO_Pin = VIDEO_CLK | VIDEO_RRST | VIDEO_WRST;
+	OV7670_initialise.GPIO_Speed = GPIO_Speed_50MHz;
+	OV7670_initialise.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOA, &OV7670_initialise);
 
-	OV7670_init.GPIO_Pin = VIDEO_OE | VIDEO_WE;
-	OV7670_init.GPIO_Speed = GPIO_Speed_50MHz;
-	OV7670_init.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOB, &OV7670_init);
+	OV7670_initialise.GPIO_Pin = VIDEO_OE | VIDEO_WE | (1 << 6) | (1 << 7);
+	OV7670_initialise.GPIO_Speed = GPIO_Speed_50MHz;
+	OV7670_initialise.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOB, &OV7670_initialise);
 
-	//Инициализация внешнего прерывания
-	GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource11);		//Включение внешнего прерывания для HREF
-	EXTI_InitTypeDef EXTI_init;											//Настройка линии 11 внешних прерываний
-	EXTI_init.EXTI_Line = EXTI_Line11;
-	EXTI_init.EXTI_LineCmd = ENABLE;
-	EXTI_init.EXTI_Mode = EXTI_Mode_Interrupt;
-	EXTI_init.EXTI_Trigger = EXTI_Trigger_Rising;
-	EXTI_Init(&EXTI_init);
 
-	NVIC_InitTypeDef NVIC_init;
-	NVIC_init.NVIC_IRQChannel = EXTI15_10_IRQn;
-	NVIC_init.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_init.NVIC_IRQChannelPreemptionPriority = 0;
-	NVIC_init.NVIC_IRQChannelSubPriority = 0;
-	NVIC_Init(&NVIC_init);
-
+	uint8_t buffer[512*15];
+	ov7670_flag OV7670_FLAG = OV7670_SE_FRAME;
 	dump_state_t stream_file;
 	char filename[] = "video-";
 	dump_init(&stream_file, filename);
 
-	GPIOA->BRR |= VIDEO_RRST | VIDEO_WRST;
-
-	uint8_t buffer[512*16];
-	uint16_t frame_point = 0;
-	ov7670_flag OV7670_FLAG = OV7670_SE_FRAME;
-
-	while (1)
-	{
-		if (GPIOA->IDR & VIDEO_VSYNC)
-		{
-			GPIOA->BSRR |= VIDEO_RRST | VIDEO_WRST;
-			GPIOB->BRR |= VIDEO_OE | VIDEO_WE;
-			while (1)
-			{
-				if ((frame_point % 75) == 0)
-				{
-					dump(&stream_file, &OV7670_FLAG, 8);
-					frame_point = 0;
-				}
-				for (size_t i = 0; i < sizeof(buffer); i++)
-				{
-					GPIOA->BRR |= VIDEO_CLK;
-					buffer[i] = GPIO_ReadInputData(GPIOA) & 0xFF;
-					GPIOA->BSRR |= VIDEO_CLK;
-				}
-				dump(&stream_file, buffer, sizeof(buffer));
-				frame_point++;
-			}
-		}
-	}
+	//Пишем на SD флаг начала кадра
+	dump(&stream_file, &OV7670_FLAG, 8);
 
 
+again:
+	camera_init();
 
-/*
-	//Инициализация UART
-	GPIO_InitTypeDef PORTA_init_struct;
-
-	//Настраиванм ногу TXD (PA9) как выход push-pull с альтернативной функцией
-	PORTA_init_struct.GPIO_Pin = GPIO_Pin_9;
-	PORTA_init_struct.GPIO_Speed = GPIO_Speed_50MHz;
-	PORTA_init_struct.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_Init(GPIOA, &PORTA_init_struct);
-
-	//Настраиваем пин 0 порта А
-	PORTA_init_struct.GPIO_Pin = GPIO_Pin_0;
-	PORTA_init_struct.GPIO_Speed = GPIO_Speed_50MHz;
-	PORTA_init_struct.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOA, &PORTA_init_struct);
-
-	//Настраиваем UART
-	USART_InitTypeDef UART_struct;
-	UART_struct.USART_BaudRate 				= 9600;
-	UART_struct.USART_HardwareFlowControl	= USART_HardwareFlowControl_None;
-	UART_struct.USART_Mode					= USART_Mode_Tx;
-	UART_struct.USART_Parity				= USART_Parity_No;
-	UART_struct.USART_StopBits				= USART_StopBits_1;
-	UART_struct.USART_WordLength			= USART_WordLength_8b;
-	//Инициализируем UART1
-	USART_Init(USART1, &UART_struct);
-	//Включаем UART1
-	USART_Cmd(USART1, ENABLE);
-
-
-	//Инициализация таймера
-	TIM_TimeBaseInitTypeDef TIM_init_structure;
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
-
-	TIM_init_structure.TIM_ClockDivision = TIM_CKD_DIV1;
-	//TIM_init_structure.TIM_RepetitionCounter = 0x00;
-	TIM_init_structure.TIM_CounterMode = TIM_CounterMode_Up;
-	//Устанавливаем предделитель (частота / предделитель = кол-во тактов в секунду)
-	TIM_init_structure.TIM_Prescaler = 100;//50000 - 1;
-	//Устанавливаем значение счетчика, по достижении которого он обнулится
-	TIM_init_structure.TIM_Period = 1;
-	TIM_TimeBaseInit(TIM2, &TIM_init_structure);
-	//Разрешаем прерывание по переполнению таймера
-	TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
-	//НАЧИНАЕМ ОТСЧЕТ
-	TIM_Cmd(TIM2, ENABLE);
-	//Разрешаем прерывание от таймера
-	NVIC_EnableIRQ(TIM2_IRQn);
-*/
-	/*while(1)
-	{
-		//GPIO_WriteBit(GPIOA, GPIO_Pin_0, Bit_SET);		//ставим 1 на А0
-		//GPIO_WriteBit(GPIOA, GPIO_Pin_0, Bit_RESET);	//ставим 0 на А0
-		blink_led_on();
-		blink_led_off();
-		//GPIO_WriteBit(GPIOA, GPIO_Pin_0, Bit_SET);		//ставим 1 на А0
-		//GPIO_WriteBit(GPIOA, GPIO_Pin_0, Bit_RESET);	//ставим 0 на А0
-		//GPIOA->BSRR |= 1;
-		//GPIOA->BRR |= 1;
-	}*/
-
-
-  /*//Инициализация таймера
-   RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM6, ENABLE);
-   //Устанавливаем предделитель (частота 24 МГц / предделитель = кол-во тактов в секунду)
-   TIM6->PSC = 24000 - 1;
-   //Устанавливаем значение счетчика, по достижении которого он обнулится
-   TIM6->ARR = 1000;
-   //Разрешаем прерывание от таймера
-   TIM6->DIER |= TIM_DIER_UIE;
-   //НАЧИНАЕМ ОТСЧЕТ
-   TIM6->CR1 |= TIM_CR1_CEN;
-   //
-   //NVIC_EnableIRQ();*/
-
-
- /* while (1)
-  {
-	  while (USART_GetFlagStatus(USART1, USART_FLAG_TC) != SET)
-	  {}
-	  USART_SendData(USART1, 'H');
-  }*/
-}
-
-/*void TIM2_IRQHandler()
-{
-	blink_led_on();
-	blink_led_off();
-	//GPIOA->BSRR |= 1;
-	//GPIOA->BRR |= 1;
-	blink_led_on();
-	while (USART_GetFlagStatus(USART1, USART_FLAG_TC) != SET)
+	// ждем VSYNC
+	while((GPIOA->IDR & VIDEO_VSYNC) != 0)
 	{}
-	RCC_ClocksTypeDef clock_str;
-	RCC_GetClocksFreq(&clock_str);
-	uint16_t sys_frec = (uint16_t)clock_str.SYSCLK_Frequency;
-	//uint16_t sys_frec = 0xff;
-	//USART_SendData(USART1, sys_frec);
+	while((GPIOA->IDR & VIDEO_VSYNC) == 0)
+	{}
 
-	TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-	blink_led_off();
-}*/
 
-void EXTI15_10_IRQHandler()
-{
-	EXTI_ClearITPendingBit(EXTI_Line11);
-	//blink_led_on();
-	string_point++;
-	//blink_led_off();
-	if (string_point >= 300)
+	// VSYNC пришел, нужно срочно включать запись в фифо
+	GPIOB->BSRR |= VIDEO_WE;
+
+	// теперь считаем HREF-ы
+	size_t href_cnt = 0;
+	while(1)
 	{
-		GPIOB->BSRR |= VIDEO_WE;
+		// пока HREF в нуле ничего не делаем
+		while((GPIOA->IDR & VIDEO_HREF) == 0)
+		{}
 
-		NVIC_InitTypeDef NVIC_init;
-		NVIC_init.NVIC_IRQChannel = EXTI15_10_IRQn;
-		NVIC_init.NVIC_IRQChannelCmd = DISABLE;
-		NVIC_init.NVIC_IRQChannelPreemptionPriority = 0;
-		NVIC_init.NVIC_IRQChannelSubPriority = 0;
-		NVIC_Init(&NVIC_init);
+		href_cnt++;
+
+		// ждем пока опустится обратно
+		while((GPIOA->IDR & VIDEO_HREF) != 0)
+		{}
+
+		if (href_cnt >= 300)
+			break;
 	}
+
+	// и быстро запрещаем запись в фифо
+	GPIOB->BRR |= VIDEO_WE | (1 << 7);
+
+	// сбрасываем указатель чтения
+	GPIOA->BRR |= VIDEO_RRST;						//переводим маркеры чтения и записи FIFO на начало
+	for (int i = 0; i < 100; i++)					//clock-аем
+	{
+		GPIOA->BSRR |= VIDEO_CLK;
+		GPIOA->BRR |= VIDEO_CLK;
+	}
+	GPIOA->BSRR |= VIDEO_RRST;
+
+	//camera_init();
+	//разрешаем чтение из FIFO
+	GPIOB->BRR |= VIDEO_OE;
+
+	// и читаем и пишем на флешку
+	for (size_t j = 0; j < 50; j++)
+	{
+		for (size_t i = 0; i < sizeof(buffer); i++)
+		{
+			GPIOA->BRR |= VIDEO_CLK;
+			buffer[i] = (uint8_t)GPIO_ReadInputData(GPIOA);
+			GPIOA->BSRR |= VIDEO_CLK;
+		}
+		dump(&stream_file, buffer, sizeof(buffer));
+		//camera_init();
+	}
+	dump(&stream_file, &OV7670_FLAG, 8);
+
+	static bool led = false;
+	if (led)
+		blink_led_on();
+	else
+		blink_led_off();
+	led = !led;
+
+	// продолжаем
+	goto again;
+
+
 }
 
 #pragma GCC diagnostic pop

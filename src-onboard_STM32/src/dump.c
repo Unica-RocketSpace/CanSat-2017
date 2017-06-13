@@ -36,7 +36,7 @@ void dump_init(dump_state_t * state, char * filename)
 
    // выбираем имя файлу
    char fname[15];
-   for (i = 20; i < SIZE_MAX; i++)
+   for (i = 0; i < SIZE_MAX; i++)
    {
       fname[0] ='\0';
       sprintf(fname, "0:/%s%u.bin", filename, i);
@@ -75,12 +75,12 @@ void dump(dump_state_t * state, const void * data, size_t datasize)
       trace_printf("write error %d\n");
 
    static int_fast32_t sync_counter = 0;
-   if (sync_counter >= 10)
-   {
+   //if (sync_counter >= 10)
+   //{
       if ((res = f_sync(&state->file)) != FR_OK)
          trace_printf("sync error %d\n");
-      sync_counter = 0;
-   }
+   //   sync_counter = 0;
+   //}
    sync_counter++;
 }
 

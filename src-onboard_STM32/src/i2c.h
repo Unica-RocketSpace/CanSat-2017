@@ -9,8 +9,8 @@
 #define I2C_H_
 
 int i2c_init(void);
-static s8 i2c_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt);
-static s8  i2c_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt);
+int8_t i2c_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *reg_data, uint8_t cnt);
+int8_t  i2c_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t *reg_data, uint8_t cnt);
 
 
 #endif /* I2C_H_ */

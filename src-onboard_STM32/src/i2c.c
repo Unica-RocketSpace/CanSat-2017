@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #include <stm32f10x_conf.h>
+#include <stm32f10x_i2c.h>
 
 #pragma GCC diagnostic push // очень много варнингов на эту тему от фриртоса и fatfs
 #pragma GCC diagnostic ignored "-Wpadded"
@@ -26,7 +27,7 @@
 #define GOTO_END_IF_ERROR(OP) error = OP; if(error != 0) goto end;
 
 
-inline static s8 _wait_for_i2c_event(I2C_TypeDef * bus, uint32_t event)
+inline static int8_t _wait_for_i2c_event(I2C_TypeDef * bus, uint32_t event)
 {
 
    for (size_t count = 0; count < I2C_TIMEOUT; count++)
@@ -43,9 +44,9 @@ inline static s8 _wait_for_i2c_event(I2C_TypeDef * bus, uint32_t event)
 }
 
 
-static s8 _i2c_start(I2C_TypeDef * bus)
+static int8_t _i2c_start(I2C_TypeDef * bus)
 {
-	s8 error;
+	int8_t error;
 
 	I2C_GenerateSTART(bus, ENABLE);
 	GOTO_END_IF_ERROR(_wait_for_i2c_event(bus, I2C_EVENT_MASTER_MODE_SELECT)); // EV 8_2
@@ -54,9 +55,9 @@ end:
 	return error;
 }
 
-static s8 _i2c_send_slaw(I2C_TypeDef * bus, uint8_t addr, uint8_t direction)
+static int8_t _i2c_send_slaw(I2C_TypeDef * bus, uint8_t addr, uint8_t direction)
 {
-	s8 error = 0;
+	int8_t error = 0;
 	// отправляем адрес
 	I2C_Send7bitAddress(bus, addr, direction);
 	if (direction == I2C_Direction_Transmitter)
@@ -75,9 +76,9 @@ end:
 }
 
 
-static s8 _i2c_write(I2C_TypeDef * bus, const void * buffer_, size_t buffersize)
+static int8_t _i2c_write(I2C_TypeDef * bus, const void * buffer_, size_t buffersize)
 {
-	s8 error = 0;
+	int8_t error = 0;
 
 	const uint8_t * buffer = (const uint8_t*)buffer_;
 	while(buffersize--)
@@ -91,9 +92,9 @@ end:
 }
 
 
-static s8 _i2c_read(I2C_TypeDef * bus, void * buffer_, size_t buffersize, bool nackAtEnd)
+static int8_t _i2c_read(I2C_TypeDef * bus, void * buffer_, size_t buffersize, bool nackAtEnd)
 {
-	s8 error = 0;
+	int8_t error = 0;
 
 	I2C_AcknowledgeConfig(bus, ENABLE);
 	uint8_t * buffer = (uint8_t*)buffer_;
@@ -119,9 +120,9 @@ static void _i2c_stop(I2C_TypeDef * bus)
 
 
 
-static s8  i2c_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
+int8_t  i2c_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t *reg_data, uint8_t cnt)
 {
-	s8 error;
+	int8_t error;
 	GOTO_END_IF_ERROR(_i2c_start(I2C1));
 	GOTO_END_IF_ERROR(_i2c_send_slaw(I2C1, dev_addr, I2C_Direction_Transmitter));
 	GOTO_END_IF_ERROR(_i2c_write(I2C1, &reg_addr, 1));
@@ -133,16 +134,18 @@ end:
 }
 
 
-static s8 i2c_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
+int8_t i2c_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *reg_data, uint8_t cnt)
 {
-	s8 error;
+	int8_t error;
 
 	GOTO_END_IF_ERROR(_i2c_start(I2C1));
 	GOTO_END_IF_ERROR(_i2c_send_slaw(I2C1, dev_addr, I2C_Direction_Transmitter));
 	GOTO_END_IF_ERROR(_i2c_write(I2C1, &reg_addr, 1));
+	_i2c_stop(I2C1);
 	GOTO_END_IF_ERROR(_i2c_start(I2C1));
 	GOTO_END_IF_ERROR(_i2c_send_slaw(I2C1, dev_addr, I2C_Direction_Receiver));
-	GOTO_END_IF_ERROR(_i2c_read(I2C1, reg_data, cnt, true));
+	GOTO_END_IF_ERROR(_i2c_read(I2C1, reg_data, cnt, false));
+
 
 end:
 	_i2c_stop(I2C1);
@@ -159,7 +162,7 @@ int i2c_init(void)
 
 	GPIO_InitTypeDef portInit;
 	GPIO_StructInit(&portInit);
-	portInit.GPIO_Mode = GPIO_Mode_AF_OD;
+	portInit.GPIO_Mode =  GPIO_Mode_AF_OD;
 	portInit.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7;
 	portInit.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOB, &portInit);

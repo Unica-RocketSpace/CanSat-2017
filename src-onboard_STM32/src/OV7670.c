@@ -7,20 +7,38 @@
 #include <stdbool.h>
 
 #include "OV7670.h"
-#include "OV7670_config.h"
 #include "i2c.h"
+
+OV7670_struct OV7670 =
+		{
+				.capture_request = false,
+				.capture_done = true,
+				.busy = false,
+				.init_success = false,
+				.line_counter = 0,
+				.last_line_counter = 0,
+				.camera_mode = MODE_RGB565,
+				.bufferPos = 0,
+				//int bufferFullFunctionPtr = 0;
+				//int readImageStartFunctionPtr = 0;
+				//int readImageStopFunctionPtr = 0;
+				.edgeEnhacementEnabled = false,
+				.denoiseEnabled = false,
+				.buffer = {0}
+		};
+
 /*
 void OV7670_setSerial(HardwareSerial *s) {
 	OV7670.serial = s;
 }
 */
-void OV7670_nightMode(bool enable) {
+/*void OV7670_nightMode(bool enable) {
 	if (enable) {
-		i2c_write(OV7670_I2C_ADDR, REG_COM11, COM11_EXP|COM11_HZAUTO);
-		i2c_write(OV7670_I2C_ADDR, REG_COM11, COM11_EXP|COM11_HZAUTO|COM11_NIGHT|COM11_NIGHT_FR8);
+		i2c_write(OV7670_I2C_ADDR, REG_COM11, (uint8_t*)(COM11_EXP | COM11_HZAUTO), 1);
+		i2c_write(OV7670_I2C_ADDR, REG_COM11, (uint8_t*)(COM11_EXP|COM11_HZAUTO|COM11_NIGHT|COM11_NIGHT_FR8), 1);
 	} else {
-		i2c_write(OV7670_I2C_ADDR, REG_COM11, COM11_EXP|COM11_HZAUTO|COM11_NIGHT|COM11_NIGHT_FR8);
-		i2c_write(OV7670_I2C_ADDR, REG_COM11, COM11_EXP|COM11_HZAUTO);
+		i2c_write(OV7670_I2C_ADDR, REG_COM11, (uint8_t*)(COM11_EXP|COM11_HZAUTO|COM11_NIGHT|COM11_NIGHT_FR8), 1);
+		i2c_write(OV7670_I2C_ADDR, REG_COM11, (uint8_t*)(COM11_EXP|COM11_HZAUTO), 1);
 	}
 }
 
@@ -29,7 +47,7 @@ void OV7670_contrast(int8_t value) {
 	static const uint8_t values[] = {0x60, 0x50, 0x40, 0x38, 0x30};
 
 	value = min(max((value + 2), 0), 4);
-	i2c_write(OV7670_I2C_ADDR, REG_CONTRAST, values[value]);
+	i2c_write(OV7670_I2C_ADDR, REG_CONTRAST, *values[value], 1);
 }
 
 // -2 (dark) to +2 (bright)
@@ -74,48 +92,9 @@ void OV7670_denoise(uint8_t value) {
 	}
 	OV7670.denoiseEnabled = (value > 0);
 }
+*/
 
-
-void OV7670_init() {
-	OV7670.init_success = OV7670_reset(MODE_YUV);
-}
-
-/**
- * returns 1 if camera was initialized succesful
- * mode: MODE_RGB444, MODE_RGB555, MODE_RGB565, MODE_YUV
- */
-uint8_t OV7670_reset(uint8_t mode) {
-	uint8_t ret = 0;
-	OV7670.camera_mode = mode;
-
-	OV7670_init_camera_reset();
-
-	switch (OV7670.camera_mode) {
-	case MODE_RGB444:
-		ret = OV7670_init_rgb444_qqvga();
-		if (ret != 1) return ret;
-		break;
-	case MODE_RGB555:
-		ret = OV7670_init_rgb555_qqvga();
-		if (ret != 1) return ret;
-		break;
-	case MODE_RGB565:
-		ret = OV7670_init_rgb565_qqvga();
-		if (ret != 1) return ret;
-		break;
-	case MODE_YUV:
-		ret = OV7670_init_yuv_qqvga();
-		if (ret != 1) return ret;
-		break;
-
-	}
-
-	OV7670_init_negative_vsync();			//зачем?
-	ret = OV7670_init_default_values();		//зачем?
-
-	return ret;
-}
-
+/*
 void OV7670_vsync_handler() {
 	if (OV7670.capture_request) {
 		WRITE_RESET;
@@ -262,7 +241,7 @@ OV7670.bufferPos = 0;
   	(*readImageStopFunctionPtr)();
   }
 
-}
+}*/
 
 
 /**
@@ -281,14 +260,14 @@ uint8_t OV7670_transfer_regvals(struct regval_list *list) {
 			return 1;
 		}
 
-		ret = i2c_write(OV7670_I2C_ADDR, list[i].reg_num, list[i].value);
+		ret = i2c_write(OV7670_I2C_ADDR, list[i].reg_num, &list[i].value, 1);
 		if (!ret) {
 			return i;
 		}
 
 		// delay for reset command
 		if ((list[i].reg_num == REG_COM7) && (list[i].value == COM7_RESET)) {
-			_delay_ms(200);
+			for (uint16_t f = 0; f < 65000; f++){}
 		}
 
 		i++;
@@ -298,10 +277,10 @@ uint8_t OV7670_transfer_regvals(struct regval_list *list) {
 }
 
 
-uint8_t OV7670_init_rgb444_qvga() {
+/*uint8_t OV7670_init_rgb444_qvga() {
 	uint8_t ret = 0;
 
-	i2c_write(OV7670_I2C_ADDR, REG_COM7, COM7_RGB | COM7_QQVGA);
+	//i2c_write(OV7670_I2C_ADDR, REG_COM7, COM7_RGB | COM7_QQVGA);
 	ret = OV7670_transfer_regvals(ov7670_fmt_rgb444);
 	if (ret != 1) return ret;
 
@@ -311,41 +290,84 @@ uint8_t OV7670_init_rgb444_qvga() {
 uint8_t OV7670_init_rgb555_qvga() {
 	uint8_t ret = 0;
 
-	i2c_write(OV7670_I2C_ADDR, REG_COM7, COM7_RGB | COM7_QQVGA);
+	//i2c_write(OV7670_I2C_ADDR, REG_COM7, COM7_RGB | COM7_QQVGA);
 	ret = OV7670_transfer_regvals(ov7670_fmt_rgb555);
 	if (ret != 1) return ret;
 
 	return OV7670_transfer_regvals(ov7670_qqvga);
 }
+*/
 
 uint8_t OV7670_init_rgb565_qvga() {
 	uint8_t ret = 0;
-
-	i2c_write(OV7670_I2C_ADDR, REG_COM7, COM7_RGB | COM7_QVGA);
+	uint8_t reg_data = (COM7_RGB | COM7_QVGA);
+	i2c_write(OV7670_I2C_ADDR, REG_COM7, &reg_data, 1);
 	ret = OV7670_transfer_regvals(ov7670_fmt_rgb565);
 	if (ret != 1) return ret;
 
-	return OV7670_transfer_regvals(ov7670_qqvga);
+	return OV7670_transfer_regvals(ov7670_qvga);
 }
 
-uint8_t OV7670_init_yuv_qqvga() {
+/*uint8_t OV7670_init_yuv_qvga() {
 	uint8_t ret = 0;
 
-	i2c_write(OV7670_I2C_ADDR, REG_COM7, COM7_YUV);
+	//i2c_write(OV7670_I2C_ADDR, REG_COM7, COM7_YUV);
 	ret = OV7670_transfer_regvals(ov7670_fmt_yuv422);
 	if (ret != 1) return ret;
 
 	return OV7670_transfer_regvals(ov7670_qqvga);
+}*/
+
+/**
+ * returns 1 if camera was initialized succesful
+ * mode: MODE_RGB444, MODE_RGB555, MODE_RGB565, MODE_YUV
+ */
+uint8_t OV7670_reset(uint8_t mode) {
+	uint8_t ret = 0;
+	OV7670.camera_mode = mode;
+
+	OV7670_init_camera_reset();
+
+	switch (OV7670.camera_mode) {
+	/*case MODE_RGB444:
+		ret = OV7670_init_rgb444_qvga();
+		if (ret != 1) return ret;
+		break;
+	case MODE_RGB555:
+		ret = OV7670_init_rgb555_qvga();
+		if (ret != 1) return ret;
+		break;*/
+	case MODE_RGB565:
+		ret = OV7670_init_rgb565_qvga();
+		if (ret != 1) return ret;
+		break;
+	/*case MODE_YUV:
+		ret = OV7670_init_yuv_qvga();
+		if (ret != 1) return ret;
+		break;*/
+
+	}
+
+	OV7670_init_negative_vsync();			//зачем?
+	ret = OV7670_init_default_values();		//зачем?
+
+	return ret;
+}
+
+void OV7670_init() {
+	OV7670.init_success = OV7670_reset(MODE_RGB565);
 }
 
 
 void OV7670_init_negative_vsync() {
-	i2c_write(OV7670_I2C_ADDR, REG_COM10, COM10_VS_NEG);
+	//i2c_write(OV7670_I2C_ADDR, REG_COM10, COM10_VS_NEG);
 }
 
-void OV7670_init_camera_reset() {
-	i2c_write(OV7670_I2C_ADDR, REG_COM7, COM7_RESET);	//TODO:i2c
-	_delay_ms(200);										//TODO:something
+void OV7670_init_camera_reset()
+{
+	uint8_t reg_data = COM7_RESET;
+	i2c_write(OV7670_I2C_ADDR, REG_COM7, &reg_data, 1);
+	for (uint16_t f = 0; f < 65000; f++){}
 }
 
 uint8_t OV7670_init_default_values() {
