@@ -26,8 +26,7 @@ const char FRAME_HEADER[] = "P6 640 300 255 ";
 char mode[10];
 const char color_mode[] = "color";
 const char mono_mode[] = "mono";
-char video_number;
-//char path_stream[] = "/media/developer/SDHC/VIDEO- .BIN";
+int video_number;
 
 //ЗАПОЛНЯЕТ ФАЙЛ СГЕНЕРИРОВАННЫМИ ВИДЕОДАННЫМИ
 //ПАРАМЕТР	* path		- указатель на путь к файлу, в который будут записаны видеоданные
@@ -88,7 +87,6 @@ int createFrame(uint16_t * stream, int length, int pointer, const char * path_fr
 {
 	FILE * file_frame  = fopen(path_frame, "wb");		//файл со сформиррованным кадром
 	int k = 0;
-	uint8_t Y, Cb, Cr;
 
 	for(int i = pointer; i < (length / 2); i++)
 	{
@@ -97,6 +95,7 @@ int createFrame(uint16_t * stream, int length, int pointer, const char * path_fr
 		{
 			i = i + 2;
 
+			int16_t Y = 0, Cb = 0, Cr = 0;
 			int16_t red, green, blue;
 			fwrite(FRAME_HEADER, strlen(FRAME_HEADER), 1, file_frame);
 			printf("Найдено начало кадра [пиксель номер %d]\n", i - 2);
@@ -175,36 +174,49 @@ fclose(file_frame);
 return -1;
 }
 
-/*void set_mode_()
+void set_mode_()
 {
 	printf("ВВЕДИТЕ РЕЖИМ ОБРАБОТКИ ВИДЕО\n");
 	scanf("%s", mode);
+}
 
+void set_number()
+{
 	printf("ВВЕДИТЕ НОМЕР ВИДЕО\n");
-	scanf("%s", &video_number);
-
-	path_stream[28] = video_number;
-	printf("%s\n", path_stream);
-}*/
-
-
+	scanf("%d", &video_number);
+}
 
 //MAIN*****************
 int main()
 {
-	const char path_stream[] = "/media/developer/SDHC/VIDEO-13.BIN";
+	//const char path_stream[]	= "/media/developer/SDHC/VIDEO-3.BIN";
 	char 		path_folder[]	= "/home/developer/Рабочий стол/Frames/frame-";
 	const char	extension[]		= ".ppm";
 
-	//set_mode_();
-	printf("ВВЕДИТЕ РЕЖИМ ОБРАБОТКИ ВИДЕО\n");
-	scanf("%s", mode);
+	char default_path[] = "/media/developer/SDHC/VIDEO-";
+	char video_extension[] = ".BIN";
 
-		/*printf("ВВЕДИТЕ НОМЕР ВИДЕО\n");
-		scanf("%s", &video_number);
+	set_mode_();
+	while(((strcmp(mode, color_mode) != 0) & (strcmp(mode, mono_mode) != 0)))
+	{
+		if (((strcmp(mode, color_mode) != 0) & (strcmp(mode, mono_mode) != 0)))		//проверям совпадение введенного режима с возможными
+			printf("MODE_ERROR\n");
+		set_mode_();
+	}
+	int i = 0;
+	int num = video_number;
+	while(num >= 1)
+	{
+		num = num / 10;
+		i++;
+	}
 
-		//path_stream[28] = video_number;
-		printf("%s\n", path_stream);*/
+number_l:
+	set_number();
+	/*создаем путь к видео*/
+	char path_stream[strlen(default_path) + strlen(video_extension) + i];
+	sprintf(path_stream, "%s%d%s", default_path, video_number, video_extension);
+	printf("%s\n", path_stream);
 
 	char number[4];
 	int n = 0;
@@ -215,7 +227,8 @@ int main()
 	//generateStream(path_stream);
 	if (file_stream == NULL)
 	{
-		printf("ERROR");								//выводит ERROR если невозможно открыть файл
+		printf("OPEN_ERROR\n");								//выводит ERROR если невозможно открыть файл
+		goto number_l;
 		return 0;
 	}
 	fseek(file_stream, 0, SEEK_END);					//переносим указатель в конец файла
