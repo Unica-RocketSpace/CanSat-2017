@@ -99,7 +99,7 @@ void reset_FIFO()
 	GPIOA->BRR |= VIDEO_CLK;
 	GPIOA->BSRR |= VIDEO_CLK;
 	GPIOA->BRR |= VIDEO_RRST | VIDEO_WRST;
-	for (int i = 0; i < 50000; i++)
+	for (int i = 0; i < 50; i++)
 	{
 		GPIOA->BRR |= VIDEO_CLK;
 		GPIOA->BSRR |= VIDEO_CLK;
@@ -120,8 +120,7 @@ void exti_enable(FunctionalState state)
 	NVIC_Init(&NVIC_init);
 }
 
-int
-main(int argc, char* argv[])
+int main(int argc, char* argv[])
 {
 	//Включаем тактирование
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);

@@ -180,7 +180,7 @@ void set_mode_()
 	scanf("%s", mode);
 }
 
-void set_number()
+void set_number_()
 {
 	printf("ВВЕДИТЕ НОМЕР ВИДЕО\n");
 	scanf("%d", &video_number);
@@ -212,7 +212,7 @@ int main()
 	}
 
 number_l:
-	set_number();
+	set_number_();
 	/*создаем путь к видео*/
 	char path_stream[strlen(default_path) + strlen(video_extension) + i];
 	sprintf(path_stream, "%s%d%s", default_path, video_number, video_extension);

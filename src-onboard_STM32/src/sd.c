@@ -202,7 +202,7 @@ void sd_init(void)
    _sd_dma_params.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
    _sd_dma_params.DMA_BufferSize = 512;
    _sd_dma_params.DMA_Mode = DMA_Mode_Normal;
-   _sd_dma_params.DMA_Priority = DMA_Priority_VeryHigh;
+   _sd_dma_params.DMA_Priority = DMA_Priority_Low;
    _sd_dma_params.DMA_M2M = DMA_M2M_Disable;
 
    DMA_Cmd(SD_DMA_CHANNEL_TX, ENABLE);
