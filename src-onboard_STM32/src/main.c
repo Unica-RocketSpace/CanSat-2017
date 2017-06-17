@@ -9,7 +9,6 @@
 #include <stdlib.h>
 #include "diag/Trace.h"
 
-#include "Timer.h"
 #include "BlinkLed.h"
 #include "stm32f10x_conf.h"
 #include "stm32f10x_usart.h"
@@ -134,39 +133,51 @@ void blink_led()
 #include <task.h>
 
 
+#include "BlinkLed.h"
+#include <FreeRTOS.h>
+#include <task.h>
 
-void task__(void * args)
+
+void task2(void * args);
+
+void task(void * args)
 {
-	//xTaskCreate(task__2, "2", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
+	(void)args;
 
-	for(;;)
+	xTaskCreate(task2, "1", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
+	vTaskDelay(500 / portTICK_PERIOD_MS);
+
+	for (;;)
 	{
 		blink_led_on();
-		TickType_t ticks = xTaskGetTickCount();
-		//trace_printf("ticks = %d\n", ticks);
-		blink_led_off();
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	}
 }
 
 
+void task2(void * args)
+{
+	(void)args;
+
+	for(;;)
+	{
+		blink_led_off();
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
+	}
+}
 
 
 int main()
 {
 	blink_led_init();
-
-	xTaskCreate(task__, "1", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
+	xTaskCreate(task, "1", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
 
 
 	vTaskStartScheduler();
 
-	for(;;)
-	{
-		volatile int x = 0;
-	}
-
 	return 0;
 }
+
 
 int main_x(int argc, char* argv[])
 {
