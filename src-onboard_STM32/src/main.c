@@ -22,6 +22,13 @@
 #include <dump.h>
 #include "OV7670.h"
 #include "i2c.h"
+#include "tim_dma_control.h"
+#include "registers.h"
+
+
+
+#define BUFFER_SIZE	(1280*6)
+#define BUFFER_CNT	(50)		//640*300*2/BUFFER_SIZE
 
 // ----------------------------------------------------------------------------
 //
@@ -51,18 +58,6 @@
 // so please adjust the PLL settings in system/src/cmsis/system_stm32f10x.c
 //
 
-//Порт A
-#define VIDEO_DATA		GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7
-#define VIDEO_CLK		GPIO_Pin_8
-#define VIDEO_RRST		GPIO_Pin_9
-#define VIDEO_WRST		GPIO_Pin_10
-#define VIDEO_HREF		GPIO_Pin_11
-#define VIDEO_VSYNC	GPIO_Pin_12
-
-//Порт B
-#define VIDEO_OE		GPIO_Pin_0
-#define VIDEO_WE		GPIO_Pin_1
-
 // ----- functions() --------------------------------------------------------
 
 typedef enum
@@ -83,27 +78,31 @@ typedef enum
 #pragma GCC diagnostic ignored "-Wreturn-type"
 
 
-uint8_t _buffer[512*15] = {0x00};
+uint8_t buffer[BUFFER_SIZE];
+size_t href_cnt = 0;
+size_t buff_cnt = 0;
 
 void reset_FIFO()
 {
 	GPIOB->BSRR |= VIDEO_OE | VIDEO_WE;
-	GPIOA->BRR |= VIDEO_CLK;
-	GPIOA->BSRR |= VIDEO_CLK;
+	tdcs_pull_data(buffer, 1);
 	GPIOA->BRR |= VIDEO_RRST | VIDEO_WRST;
-	for (int i = 0; i < 50000; i++)
-	{
-		GPIOA->BRR |= VIDEO_CLK;
-		GPIOA->BSRR |= VIDEO_CLK;
-	}
-
+	tdcs_pull_data(buffer, sizeof(buffer));
 	GPIOA->BSRR |= VIDEO_RRST | VIDEO_WRST;
-	GPIOA->BRR |= VIDEO_CLK;
-	GPIOA->BSRR |= VIDEO_CLK;
+	//GPIOA->BRR |= VIDEO_CLK;
+	//GPIOA->BSRR |= VIDEO_CLK;
 }
 
 void exti_enable(FunctionalState state)
 {
+	EXTI_InitTypeDef exti;
+	EXTI_StructInit(&exti);
+	exti.EXTI_Line = EXTI_Line11;
+	exti.EXTI_LineCmd = ENABLE;
+	exti.EXTI_Mode = EXTI_Mode_Interrupt;
+	exti.EXTI_Trigger = EXTI_Trigger_Falling;
+	EXTI_Init(&exti);
+
 	NVIC_InitTypeDef NVIC_init;
 	NVIC_init.NVIC_IRQChannel = EXTI15_10_IRQn;
 	NVIC_init.NVIC_IRQChannelCmd = state;
@@ -118,205 +117,62 @@ void camera_init()
 	GPIOB->BSRR |= VIDEO_OE;
 
 	GPIOA->BRR |= VIDEO_RRST | VIDEO_WRST;			//переводим маркеры чтения и записи FIFO на начало
-	for (int i = 0; i < 10; i++)					//clock-аем
-	{
-		GPIOA->BSRR |= VIDEO_CLK;
-		GPIOA->BRR |= VIDEO_CLK;
-
-	}
+	tdcs_pull_data(buffer, 10);
 	GPIOA->BSRR |= VIDEO_RRST | VIDEO_WRST;
 }
 
-
-void setup_timers()
+void blink_led()
 {
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
-
-	// НАСТРОЙКА ТАЙМЕРА 2 (тот, который пинает DMA)
-	// ===============================================================
-	// ===============================================================
-	// ===============================================================
-	// настраиваем таймер для генерации выводной частоты
-	TIM_TimeBaseInitTypeDef tim;
-	TIM_TimeBaseStructInit(&tim);
-	tim.TIM_Prescaler = 0x0000;
-	tim.TIM_CounterMode = TIM_CounterMode_Up;
-	tim.TIM_Period = 0x05; // два такта таймера до переполнения. это даст нам частоту в 72/2 = 36 мгц?
-	tim.TIM_ClockDivision = TIM_CKD_DIV1;
-	// tim.TIM_RepetitionCounter не используется на нашем таймере
-	TIM_TimeBaseInit(TIM2, &tim);
-
-	// настраиваем PWM, чтобы формировать выходной клок
-	// Используем третий канал, так как он позволяет расталкивать DMA по его первому каналу
-	TIM_OCInitTypeDef tim_oc;
-	TIM_OCStructInit(&tim_oc);
-	tim_oc.TIM_OCMode = TIM_OCMode_PWM1; // FIXME: Почему pwm1?
-	tim_oc.TIM_OutputState = TIM_OutputState_Enable; // включаем вывод на пин
-	//tim_pwm.TIM_OCNIdleState // только для таймеров 1, 8
-	tim_oc.TIM_Pulse = 0x02; // значение в CCR регистре
-	tim_oc.TIM_OCPolarity = TIM_OCPolarity_High; // FIXME: Тут нужно подумать
-	//tim_pwm.TIM_OCNPolarity; // только для таймеров 1, 8
-	//tim_pwm.TIM_OCIdleState; // только для таймеров 1, 8
-	//tim_pwm.TIM_OCNIdleState; // только для таймеров 1, 8
-	TIM_OC3Init(TIM2, &tim_oc);
-
-	// разрешаем таймеру обращаться к этому каналу DMA по событию совпадения счетчика с 3им CCR регистром
-	// для прогона одного байта через DMA
-	//TIM_DMAConfig(TIM2, TIM_DMABase_CCR3, TIM_DMABurstLength_1Byte);
-	//TIM_DMACmd(TIM2, TIM_DMA_CC3, ENABLE);
-
-	// РАзрешаем этому таймеру управлять ведомыми таймерами
-	//TIM_SelectMasterSlaveMode(TIM2, TIM_MasterSlaveMode_Enable);
-	// Выдаем им сигнал UPDATE
-	//TIM_SelectOutputTrigger(TIM2, TIM_TRGOSource_Update);
-		// Включаем для этого таймепра входной триггер с таймера 3
-	TIM_SelectInputTrigger(TIM2, TIM_TS_ITR2);
-	// Разрешаем другим таймерам управлять нашим клоком режимом гейтирования
-	TIM_SelectSlaveMode(TIM2, TIM_SlaveMode_Gated);
-
-
-
-
-	// НАСТРОЙКА ТАЙМЕРА 3 (тот, который выключает таймер 2)
-	// ===============================================================
-	// ===============================================================
-	// ===============================================================
-	//настраиваем таймер для отсчета количества прерываний таймера 2
-	TIM_TimeBaseInitTypeDef tim_cnt;
-	TIM_TimeBaseStructInit(&tim_cnt);
-	tim_cnt.TIM_Prescaler = 0x0000;
-	tim_cnt.TIM_CounterMode = TIM_CounterMode_Up;
-	tim_cnt.TIM_Period = 0xFFFF-1; // FIXME: Оформить как макрос
-	tim_cnt.TIM_ClockDivision = TIM_CKD_DIV1;
-	TIM_TimeBaseInit(TIM3, &tim_cnt);
-
-	// настраиваем PWM, чтобы формировать выходной клок
-	// Используем третий канал, так как он позволяет расталкивать DMA по его первому каналу
-	TIM_OCStructInit(&tim_oc);
-	tim_oc.TIM_OCMode = TIM_OCMode_PWM2; // FIXME: В чем разница между режимами?
-	tim_oc.TIM_OutputState = TIM_OutputState_Enable;
-	//tim_pwm.TIM_OCNIdleState // только для таймеров 1, 8
-	tim_oc.TIM_Pulse = 1280 * 5; // значение в CCR регистре
-	tim_oc.TIM_OCPolarity = TIM_OCPolarity_High; // FIXME: Тут нужно подумать
-	//tim_pwm.TIM_OCNPolarity; // только для таймеров 1, 8
-	//tim_pwm.TIM_OCIdleState; // только для таймеров 1, 8
-	//tim_pwm.TIM_OCNIdleState; // только для таймеров 1, 8
-	TIM_OC1Init(TIM3, &tim_oc);
-
-	// Разрешаем ему управлять ведомыми таймерами
-	TIM_SelectMasterSlaveMode(TIM3, TIM_MasterSlaveMode_Enable);
-	// Передаем им наш сигнал с CCR1
-	TIM_SelectOutputTrigger(TIM3, TIM_TRGOSource_OC1Ref);
-	// Сами будем использовать сигнал с таймера 2
-	//TIM_SelectInputTrigger(TIM3, TIM_TS_ITR1);
-	// Будем слушать его клоки и тикать
-	//TIM_SelectSlaveMode(TIM3, TIM_SlaveMode_External1);
-
+	static bool led_st = false;
+	GPIO_WriteBit(GPIOC, GPIO_Pin_13, led_st ? RESET : SET);
+	led_st = !led_st;
 }
 
 
-int
-main(int argc, char* argv[])
+
+#include <FreeRTOS.h>
+#include <task.h>
+
+
+
+void task__(void * args)
 {
-	//Включаем тактирование
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2, ENABLE);
+	//xTaskCreate(task__2, "2", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
 
-
-
-	GPIO_PinRemapConfig(GPIO_FullRemap_TIM2, ENABLE);
-	GPIO_InitTypeDef p;
-	p.GPIO_Mode = GPIO_Mode_AF_PP;
-	p.GPIO_Pin = GPIO_Pin_10;
-	p.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(GPIOB, &p);
-
-	p.GPIO_Pin = GPIO_Pin_6;
-	GPIO_Init(GPIOA, &p);
-
-
-	setup_timers();
-
-	TIM_Cmd(TIM3, ENABLE);
-	TIM_Cmd(TIM2, ENABLE);
-
-
-	while(1)
-	{}
+	for(;;)
+	{
+		blink_led_on();
+		TickType_t ticks = xTaskGetTickCount();
+		//trace_printf("ticks = %d\n", ticks);
+		blink_led_off();
+	}
+}
 
 
 
 
+int main()
+{
+	blink_led_init();
 
-	//blink_led_init();
-
-	//Инициализация портов видеокамеры
-	GPIO_InitTypeDef OV7670_initialise;
-
-	OV7670_initialise.GPIO_Pin = VIDEO_DATA | VIDEO_HREF | VIDEO_VSYNC;
-	OV7670_initialise.GPIO_Speed = GPIO_Speed_50MHz;
-	OV7670_initialise.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-	GPIO_Init(GPIOA, &OV7670_initialise);
-
-	OV7670_initialise.GPIO_Pin = VIDEO_CLK | VIDEO_RRST | VIDEO_WRST;
-	OV7670_initialise.GPIO_Speed = GPIO_Speed_50MHz;
-	OV7670_initialise.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOA, &OV7670_initialise);
-
-	OV7670_initialise.GPIO_Pin = VIDEO_OE | VIDEO_WE;
-	OV7670_initialise.GPIO_Speed = GPIO_Speed_50MHz;
-	OV7670_initialise.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOB, &OV7670_initialise);
-
-	// переключаем таймер2 на альтернативные пины
-	GPIO_InitTypeDef PortB;
-	// включаем на вывод пин CCR3
-	GPIO_StructInit(&PortB);
-	GPIO_PinRemapConfig(GPIO_FullRemap_TIM2, ENABLE);
-	PortB.GPIO_Mode = GPIO_Mode_AF_OD; // FIXME: для отладки на лампочке. Заменить на AF_PP
-	PortB.GPIO_Pin = GPIO_Pin_10;
-	PortB.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(GPIOB, &PortB);
-
-	/*
-	// настраиваем DMA для чтения данных по клоку, генерируемому таймером
-	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
-	DMA_InitTypeDef dma;
-	dma.DMA_BufferSize = sizeof(_buffer);
-	dma.DMA_DIR = DMA_DIR_PeripheralSRC;
-	dma.DMA_M2M = DMA_M2M_Disable;
-	dma.DMA_MemoryBaseAddr = (uint32_t)_buffer;
-	dma.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
-	dma.DMA_MemoryInc = DMA_MemoryInc_Enable;
-	dma.DMA_Mode = DMA_Mode_Normal;
-	dma.DMA_PeripheralBaseAddr = (uint32_t)&GPIOA->IDR;
-	dma.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
-	dma.DMA_Priority = DMA_Priority_High;
-
-	// Настраиваем первый канал DMA и включаем его
-	DMA_Init(DMA1_Channel1, &dma);
-	DMA_Cmd(DMA1_Channel1, ENABLE);
+	xTaskCreate(task__, "1", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
 
 
+	vTaskStartScheduler();
 
+	for(;;)
+	{
+		volatile int x = 0;
+	}
 
-	// FIXME: для отладки - включаем прерывание по завершению прогона блока с DMA
-	DMA_ITConfig(DMA1_Channel1, DMA_IT_TC, ENABLE);
-	NVIC_InitTypeDef dma_nvic;
-	dma_nvic.NVIC_IRQChannel = DMA1_Channel1_IRQn;
-	dma_nvic.NVIC_IRQChannelPreemptionPriority = 0;
-	dma_nvic.NVIC_IRQChannelSubPriority = 0;
-	dma_nvic.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&dma_nvic);
-	*/
+	return 0;
+}
 
+int main_x(int argc, char* argv[])
+{
+	tdcs_init();
+	blink_led_init();
 
-
-	uint8_t buffer[512*15];
 	ov7670_flag OV7670_FLAG = OV7670_SE_FRAME;
 	dump_state_t stream_file;
 	char filename[] = "video-";
@@ -328,75 +184,58 @@ main(int argc, char* argv[])
 again:
 	camera_init();
 
+	href_cnt = 0;
+	buff_cnt = 0;
+
 	// ждем VSYNC
 	while((GPIOA->IDR & VIDEO_VSYNC) != 0)
 	{}
 	while((GPIOA->IDR & VIDEO_VSYNC) == 0)
 	{}
-
-
-	// VSYNC пришел, нужно срочно включать запись в фифо
+	//разрешаем запись в fifo
 	GPIOB->BSRR |= VIDEO_WE;
-
-	// теперь считаем HREF-ы
-	size_t href_cnt = 0;
-	while(1)
-	{
-		// пока HREF в нуле ничего не делаем
-		while((GPIOA->IDR & VIDEO_HREF) == 0)
-		{}
-
-		href_cnt++;
-
-		// ждем пока опустится обратно
-		while((GPIOA->IDR & VIDEO_HREF) != 0)
-		{}
-
-		if (href_cnt >= 300)
-			break;
-	}
-
-	// и быстро запрещаем запись в фифо
-	GPIOB->BRR |= VIDEO_WE;
+	exti_enable(ENABLE);
 
 	// сбрасываем указатель чтения
-	GPIOA->BRR |= VIDEO_RRST;						//переводим маркеры чтения и записи FIFO на начало
-	for (int i = 0; i < 100; i++)					//clock-аем
-	{
-		GPIOA->BSRR |= VIDEO_CLK;
-		GPIOA->BRR |= VIDEO_CLK;
-	}
+	GPIOA->BRR |= VIDEO_RRST;
+	tdcs_pull_data(buffer, 100);
 	GPIOA->BSRR |= VIDEO_RRST;
 
-	//camera_init();
 	//разрешаем чтение из FIFO
 	GPIOB->BRR |= VIDEO_OE;
 
 	// и читаем и пишем на флешку
-	for (size_t j = 0; j < 50; j++)
+	while (buff_cnt < BUFFER_CNT)
 	{
-		for (size_t i = 0; i < sizeof(buffer); i++)
+		if (href_cnt >= 2)
 		{
-			GPIOA->BRR |= VIDEO_CLK;
-			buffer[i] = (uint8_t)GPIO_ReadInputData(GPIOA);
-			GPIOA->BSRR |= VIDEO_CLK;
+			tdcs_pull_data(buffer, sizeof(buffer));
+			dump(&stream_file, buffer, sizeof(buffer));
+			buff_cnt++;
 		}
-		dump(&stream_file, buffer, sizeof(buffer));
-		//camera_init();
+
 	}
 	dump(&stream_file, &OV7670_FLAG, 8);
+	blink_led();
 
-	static bool led = false;
-	if (led)
-		blink_led_on();
-	else
-		blink_led_off();
-	led = !led;
+	GPIOB->BSRR |= VIDEO_OE;
 
 	// продолжаем
 	goto again;
 
 
+	return 0;
+}
+
+void EXTI15_10_IRQHandler()
+{
+	EXTI_ClearITPendingBit(EXTI_Line11);
+	href_cnt++;
+	if (href_cnt >= 300)
+	{
+		GPIOB->BRR |= VIDEO_WE;
+		exti_enable(DISABLE);
+	}
 }
 
 #pragma GCC diagnostic pop
