@@ -5,8 +5,6 @@
  *      Author: snork
  */
 
-//#if !defined(OS_USE_SEMIHOSTING) && !(__STDC_HOSTED__ == 0)
-
 #include <_ansi.h>
 #include <_syslist.h>
 #include <errno.h>
