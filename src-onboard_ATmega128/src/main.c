@@ -34,23 +34,6 @@ void blink_led()
 	_delay_ms(100);
 }
 
-/*
-void print_data()
-{
-	printf("TIME: %ld\n", STATE.Time);
-	printf("MAIN MISSION\n");
-	printf("Accelerations (ADXL345): %f, %f, %f\n", STATE.aALT_XYZ[0], STATE.aALT_XYZ[1], STATE.aALT_XYZ[2]);
-	printf("Pressure      (BMP280) : %f\n", STATE.pressure);
-	printf("Temperature   (BMP280) : %f\n", STATE.temp_bmp280);
-	printf("Temperature   (DS18B20): %f\n\n", STATE.temp_ds18b20);
-
-	printf("ADDITIONAL MISSION\n");
-	printf("Accelerations    (MPU9255): %f, %f, %f\n", STATE.aRelatedXYZ[0], STATE.aRelatedXYZ[1], STATE.aRelatedXYZ[2]);
-	printf("Angle velocities (MPU9255): %f, %f, %f\n", STATE.gRelatedXYZ[0], STATE.gRelatedXYZ[1], STATE.gRelatedXYZ[2]);
-	printf("Magnetic vector  (MPU9255): %f, %f, %f\n", STATE.cRelatedXYZ[0], STATE.cRelatedXYZ[1], STATE.cRelatedXYZ[2]);
-	printf("=============END OF PACKAGE=============\n\n");
-}*/
-
 int main()
 {
 	_delay_ms(1000);
@@ -74,18 +57,17 @@ int main()
 		pull_recon_data();
 		construct_trajectory();
 
-		//print_data();
 		p_number++;
 
 		printf("TIME: %f  [s]\n", (float)STATE.Time / 1000);
 		printf("=============PACKAGE NUMBER [ %d ]====\n", p_number);
-		printf("MAIN MISSION\n");
+		printf("-----MAIN MISSION-----\n");
 		printf("Accelerations (ADXL345): %f, %f, %f  [m/s^2]\n", G_VECT*STATE.aALT_XYZ[0]/1.08, G_VECT*STATE.aALT_XYZ[1]/1.08, G_VECT*STATE.aALT_XYZ[2]/1.17);
 		printf("Pressure      (BMP280) : %f  [Pa]\n", STATE.pressure);
 		printf("Temperature   (BMP280) : %f  [oC]\n", STATE.temp_bmp280);
 		printf("Temperature   (DS18B20): %f  [oC]\n", STATE.temp_ds18b20);
 
-		printf("ADDITIONAL MISSION\n");
+		printf("-----ADDITIONAL MISSION-----\n");
 		printf("Accelerations    (MPU9255): %f, %f, %f  [m/s^2]\n", STATE.aRelatedXYZ[0], STATE.aRelatedXYZ[1], STATE.aRelatedXYZ[2]);
 		printf("Angle velocities (MPU9255): %f, %f, %f  [1/s]\n", STATE.gRelatedXYZ[0], STATE.gRelatedXYZ[1], STATE.gRelatedXYZ[2]);
 		printf("Magnetic vector  (MPU9255): %f, %f, %f  [-]\n", STATE.cRelatedXYZ[0], STATE.cRelatedXYZ[1], STATE.cRelatedXYZ[2]);
@@ -102,6 +84,7 @@ int main()
 
 	return 0;
 }
+
 
 //TODO: ОТКАЛИБРОВАТЬ ДАТЧИКИ
 //TODO: УЧЕСТЬ, ЧТО КАМЕРА ПОВЕРНУТА НА 45* ОТНОСИТЕЛЬНО ССК

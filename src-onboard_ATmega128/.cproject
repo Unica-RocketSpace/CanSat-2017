@@ -68,9 +68,9 @@
 					</folderInfo>
 					<sourceEntries>
 						<entry excluding="sofa|librscs|src" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
-						<entry excluding="rscs/_source/ads1115.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="librscs"/>
+						<entry excluding="rscs/_source/servo.c|rscs/_source/ads1115.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="librscs"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="sofa"/>
-						<entry excluding="main2.c|dynamic_unit.c|sensors_poll.c|servo_alg.c|servo_control.c|wheel_control.c|globals.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
+						<entry excluding="main2.c|sensors_poll.c|servo_alg.c|servo_control.c|wheel_control.c|globals.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -143,9 +143,9 @@
 					</folderInfo>
 					<sourceEntries>
 						<entry excluding="sofa|librscs|src" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="librscs"/>
+						<entry excluding="rscs/_source/servo.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="librscs"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="sofa"/>
-						<entry excluding="main2.c|dynamic_unit.c|sensors_poll.c|servo_alg.c|servo_control.c|wheel_control.c|globals.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
+						<entry excluding="main2.c|sensors_poll.c|servo_alg.c|servo_control.c|wheel_control.c|globals.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

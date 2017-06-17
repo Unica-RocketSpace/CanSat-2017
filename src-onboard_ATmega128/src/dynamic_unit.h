@@ -21,8 +21,8 @@
 #define MAX_WHEEL_SPEED		200
 
 #define SERVO_ANGLE_REG		OCR1B
-#define MIN_SERVO_ANGLE		-(M_PI * 4 / 9)
-#define MAX_SERVO_ANGLE		(M_PI * 4 / 9)
+#define MIN_SERVO_ANGLE_REG	675
+#define MAX_SERVO_ANGLE_REG	2475
 
 #define DRV_PORT PORTC
 #define DRV_DDR DDRC

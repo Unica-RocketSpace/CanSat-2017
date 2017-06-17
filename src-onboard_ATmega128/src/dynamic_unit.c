@@ -61,7 +61,9 @@ void setWheelSpeed(float WheelSpeed)
 
 void setServoAngle(float ServoAngle)
 {
-	if (ServoAngle > MAX_SERVO_ANGLE) ServoAngle = MAX_SERVO_ANGLE;
-	if (ServoAngle > MIN_SERVO_ANGLE) ServoAngle = MIN_SERVO_ANGLE;
-	SERVO_ANGLE_REG = 3277 * ((ServoAngle - MIN_SERVO_ANGLE) / (MAX_SERVO_ANGLE - MIN_SERVO_ANGLE) + 1);
+	float AngleRatio = (ServoAngle + 90) / 180;
+	if (AngleRatio > 1) AngleRatio = 1;
+	if (AngleRatio < 0) AngleRatio = 0;
+
+	SERVO_ANGLE_REG = (round)(AngleRatio * (MAX_SERVO_ANGLE_REG - MIN_SERVO_ANGLE_REG)) + MIN_SERVO_ANGLE_REG;
 }
