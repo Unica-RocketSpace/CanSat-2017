@@ -11,7 +11,7 @@
 #define configCPU_CLOCK_HZ                      72000000
 #define configTICK_RATE_HZ                      1000
 #define configMAX_PRIORITIES                    3
-#define configMINIMAL_STACK_SIZE                220
+#define configMINIMAL_STACK_SIZE                240
 #define configMAX_TASK_NAME_LEN                 16
 #define configUSE_16_BIT_TICKS                  0
 #define configIDLE_SHOULD_YIELD                 0
@@ -30,7 +30,7 @@
 /* Memory allocation related definitions. */
 #define configSUPPORT_STATIC_ALLOCATION         0
 #define configSUPPORT_DYNAMIC_ALLOCATION        1
-#define configTOTAL_HEAP_SIZE                   10240
+#define configTOTAL_HEAP_SIZE                   2000
 #define configAPPLICATION_ALLOCATED_HEAP        0
 
 /* Hook function related definitions. */

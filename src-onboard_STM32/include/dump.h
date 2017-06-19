@@ -20,7 +20,7 @@ typedef struct
 } dump_state_t;
 
 
-void dump_init(dump_state_t * state, char * filename);
+void dump_init(dump_state_t * state, const char * filename);
 void dump(dump_state_t * state, const void * data, size_t datasize);
 
 

@@ -11,6 +11,9 @@
 #include <assert.h>
 #include <stm32f10x_conf.h>
 
+#include <FreeRTOS.h>
+#include <task.h>
+
 #include "tim_dma_control.h"
 #include "registers.h"
 
@@ -28,8 +31,8 @@ static TIM_OCInitTypeDef _gate_ocr_params;
 // настройки DMA
 static DMA_InitTypeDef _dma_params;
 
-// Флаг завершенности передачи
-static int _transfer_result; // FIXME: заменить на семафор RTOS
+static TaskHandle_t _thisTaskHandle = NULL;
+
 
 void tdcs_init()			//TIM-DMA CONTROLLING SYSTEM
 {
@@ -203,27 +206,20 @@ void tdcs_pull_data(void * buffer, size_t buffer_size)
 	// Настройка железа завершена!
 	// все запускаем
 
-	_transfer_result = 0;
+	_thisTaskHandle = xTaskGetCurrentTaskHandle();
 
 	// порядок важен
 	TIM_Cmd(TIM3, ENABLE);
 	TIM_Cmd(TIM2, ENABLE);
 
 
-	// ждем завершения
-	for (;;)
-	{
-		register int tmp;
+	DMA_ITConfig(DMA1_Channel1, DMA_IT_TC, ENABLE);
+	NVIC_SetPriority(DMA1_Channel1_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY);
+	NVIC_EnableIRQ(DMA1_Channel1_IRQn);
 
-		__disable_irq();
-		tmp = _transfer_result;
-		__enable_irq();
+	uint32_t transferResult;
+	xTaskNotifyWait(0xFFFFFFFF, 0x00000000, &transferResult, portMAX_DELAY);
 
-		if (tmp != 0)
-			break;
-	}
-
-	// TODO: Обрабатывать ошибку?
 
 	// Все выключаем
 	DMA_DeInit(DMA1_Channel1);
@@ -243,27 +239,19 @@ void tdcs_pull_data(void * buffer, size_t buffer_size)
 
 void DMA1_Channel1_IRQHandler(void)
 {
-	register int tmp;
-	if (SET == DMA_GetITStatus(DMA1_IT_TE1))
-	{
-		DMA_ClearITPendingBit(DMA1_IT_TE1);
-		tmp = -1;
-	}
-	else if (SET == DMA_GetITStatus(DMA1_IT_TC1))
+	BaseType_t woken = 0;
+
+	if (SET == DMA_GetITStatus(DMA1_IT_TC1))
 	{
 		DMA_ClearITPendingBit(DMA1_IT_TC1);
-		tmp = 1;
+		vTaskNotifyGiveFromISR(_thisTaskHandle, &woken);
+		_thisTaskHandle = NULL;
+		portYIELD_FROM_ISR(woken);
 	}
 	else
 	{
 		abort(); // чет какая-то фигня случилась
 	}
-
-
-
-	__disable_irq();
-	_transfer_result = tmp;
-	__enable_irq();
 }
 
 

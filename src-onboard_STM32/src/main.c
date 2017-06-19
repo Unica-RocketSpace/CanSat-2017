@@ -1,13 +1,13 @@
-//
-// This file is part of the GNU ARM Eclipse distribution.
-// Copyright (c) 2014 Liviu Ionescu.
-//
-
-// ----------------------------------------------------------------------------
-
 #include <stdio.h>
 #include <stdlib.h>
 #include "diag/Trace.h"
+
+
+
+
+#include <FreeRTOS.h>
+#include <task.h>
+#include <queue.h>
 
 #include "BlinkLed.h"
 #include "stm32f10x_conf.h"
@@ -26,46 +26,19 @@
 
 
 
-#define BUFFER_SIZE	(1280*6)
-#define BUFFER_CNT	(50)		//640*300*2/BUFFER_SIZE
-
-// ----------------------------------------------------------------------------
-//
-// Standalone STM32F1 led blink sample (trace via DEBUG).
-//
-// In debug configurations, demonstrate how to print a greeting message
-// on the trace device. In release configurations the message is
-// simply discarded.
-//
-// Then demonstrates how to blink a led with 1 Hz, using a
-// continuous loop and SysTick delays.
-//
-// Trace support is enabled by adding the TRACE macro definition.
-// By default the trace messages are forwarded to the DEBUG output,
-// but can be rerouted to any device or completely suppressed, by
-// changing the definitions required in system/src/diag/trace_impl.c
-// (currently OS_USE_TRACE_SEMIHOSTING_DEBUG/_STDOUT).
-//
-// The external clock frequency is specified as a preprocessor definition
-// passed to the compiler via a command line option (see the 'C/C++ General' ->
-// 'Paths and Symbols' -> the 'Symbols' tab, if you want to change it).
-// The value selected during project creation was HSE_VALUE=72000000.
-//
-// Note: The default clock settings take the user defined HSE_VALUE and try
-// to reach the maximum possible system clock. For the default 8 MHz input
-// the result is guaranteed, but for other values it might not be possible,
-// so please adjust the PLL settings in system/src/cmsis/system_stm32f10x.c
-//
-
-// ----- functions() --------------------------------------------------------
-
 typedef enum
 {
 	OV7670_START_FRAME	= 0xFF7C0000,
 	OV7670_END_FRAME	= 0x007CFFFF,
 	OV7670_SE_FRAME		= 0xFF7C0000007CFFFF	//end-start
-}ov7670_flag;
+} ov7670_flag;
 
+static const ov7670_flag OV7670_FLAG = OV7670_SE_FRAME;
+static const char filename[] = "video-";
+
+#define BUFFER_SIZE			(1280*5)
+#define BUFFER_CNT 			(2)
+#define BUFFER_READ_COUNT	(640*300*2/BUFFER_SIZE)		//640*300*2/BUFFER_SIZE
 
 // ----- main() ---------------------------------------------------------------
 
@@ -77,16 +50,20 @@ typedef enum
 #pragma GCC diagnostic ignored "-Wreturn-type"
 
 
-uint8_t buffer[BUFFER_SIZE];
 size_t href_cnt = 0;
-size_t buff_cnt = 0;
+static QueueHandle_t _fullBufferQ;
+static QueueHandle_t _emptyBufferQ;
+static dump_state_t stream_file;
+static uint8_t _buffers[BUFFER_CNT][BUFFER_SIZE];
+
+static uint8_t _dummyBuffer[10];
 
 void reset_FIFO()
 {
 	GPIOB->BSRR |= VIDEO_OE | VIDEO_WE;
-	tdcs_pull_data(buffer, 1);
+	tdcs_pull_data(_dummyBuffer, sizeof(_dummyBuffer));
 	GPIOA->BRR |= VIDEO_RRST | VIDEO_WRST;
-	tdcs_pull_data(buffer, sizeof(buffer));
+	tdcs_pull_data(_dummyBuffer, sizeof(_dummyBuffer));
 	GPIOA->BSRR |= VIDEO_RRST | VIDEO_WRST;
 	//GPIOA->BRR |= VIDEO_CLK;
 	//GPIOA->BSRR |= VIDEO_CLK;
@@ -110,13 +87,14 @@ void exti_enable(FunctionalState state)
 	NVIC_Init(&NVIC_init);
 }
 
+
 void camera_init()
 {
 	GPIOB->BRR |=  VIDEO_WE;//запрещаем запись в FIFO и чтение из него
 	GPIOB->BSRR |= VIDEO_OE;
 
 	GPIOA->BRR |= VIDEO_RRST | VIDEO_WRST;			//переводим маркеры чтения и записи FIFO на начало
-	tdcs_pull_data(buffer, 10);
+	tdcs_pull_data(_dummyBuffer, sizeof(_dummyBuffer));
 	GPIOA->BSRR |= VIDEO_RRST | VIDEO_WRST;
 }
 
@@ -129,111 +107,114 @@ void blink_led()
 
 
 
-#include <FreeRTOS.h>
-#include <task.h>
+
+void cam_task(void* args);
 
 
-#include "BlinkLed.h"
-#include <FreeRTOS.h>
-#include <task.h>
-
-
-void task2(void * args);
-
-void task(void * args)
+void sd_task(void * args)
 {
 	(void)args;
 
-	xTaskCreate(task2, "1", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
-	vTaskDelay(500 / portTICK_PERIOD_MS);
-
-	for (;;)
-	{
-		blink_led_on();
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
-	}
-}
-
-
-void task2(void * args)
-{
-	(void)args;
-
-	for(;;)
-	{
-		blink_led_off();
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
-	}
-}
-
-
-int main()
-{
-	blink_led_init();
-	xTaskCreate(task, "1", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
-
-
-	vTaskStartScheduler();
-
-	return 0;
-}
-
-
-int main_x(int argc, char* argv[])
-{
-	tdcs_init();
-	blink_led_init();
-
-	ov7670_flag OV7670_FLAG = OV7670_SE_FRAME;
-	dump_state_t stream_file;
-	char filename[] = "video-";
 	dump_init(&stream_file, filename);
-
 	//Пишем на SD флаг начала кадра
 	dump(&stream_file, &OV7670_FLAG, 8);
+
+	_emptyBufferQ = xQueueCreate(BUFFER_CNT, sizeof(uint8_t*));
+	_fullBufferQ = xQueueCreate(BUFFER_CNT, sizeof(uint8_t*));
+
+	for (size_t i = 0; i < BUFFER_CNT; i++)
+	{
+		uint8_t * buffPtr = _buffers[i];
+		xQueueSendToBack(_emptyBufferQ, &buffPtr, portMAX_DELAY);
+	}
+
+	xTaskCreate(cam_task, "cam", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
+
+	while(1)
+	{
+		int dump_buffers_cnt = 0;
+		dump_buffers_cnt++;
+		uint8_t * buffer;
+		xQueueReceive(_fullBufferQ, &buffer, portMAX_DELAY);
+		dump(&stream_file, buffer, sizeof(buffer));
+		xQueueSend(_emptyBufferQ, &buffer, portMAX_DELAY);
+
+
+		if (dump_buffers_cnt == 50)
+			dump(&stream_file, &OV7670_FLAG, 8);
+
+	}
+}
+
+
+void cam_task(void* args)
+{
+	(void)args;
 
 again:
 	camera_init();
 
 	href_cnt = 0;
-	buff_cnt = 0;
+
+	taskENTER_CRITICAL();
 
 	// ждем VSYNC
 	while((GPIOA->IDR & VIDEO_VSYNC) != 0)
 	{}
 	while((GPIOA->IDR & VIDEO_VSYNC) == 0)
 	{}
+
+	taskEXIT_CRITICAL();
+
 	//разрешаем запись в fifo
 	GPIOB->BSRR |= VIDEO_WE;
 	exti_enable(ENABLE);
 
-	// сбрасываем указатель чтения
-	GPIOA->BRR |= VIDEO_RRST;
-	tdcs_pull_data(buffer, 100);
-	GPIOA->BSRR |= VIDEO_RRST;
-
 	//разрешаем чтение из FIFO
 	GPIOB->BRR |= VIDEO_OE;
 
+	// сбрасываем указатель чтения
+	GPIOA->BRR |= VIDEO_RRST;
+	tdcs_pull_data(_dummyBuffer, sizeof(_dummyBuffer));
+	GPIOA->BSRR |= VIDEO_RRST;
+
+
 	// и читаем и пишем на флешку
-	while (buff_cnt < BUFFER_CNT)
+	size_t buff_cnt = 0;
+	while (buff_cnt < BUFFER_READ_COUNT)
 	{
-		if (href_cnt >= 2)
+		volatile size_t tmp;
+		__disable_irq();
+		tmp = href_cnt;
+		__enable_irq();
+		if (tmp >= 2)
 		{
-			tdcs_pull_data(buffer, sizeof(buffer));
-			dump(&stream_file, buffer, sizeof(buffer));
+			uint8_t * buffer;
+			xQueueReceive(_emptyBufferQ, &buffer, portMAX_DELAY);
+			tdcs_pull_data(buffer, BUFFER_SIZE);
+			xQueueSend(_fullBufferQ, &buffer, portMAX_DELAY);
+
 			buff_cnt++;
 		}
-
 	}
-	dump(&stream_file, &OV7670_FLAG, 8);
-	blink_led();
 
-	GPIOB->BSRR |= VIDEO_OE;
+	blink_led();
 
 	// продолжаем
 	goto again;
+}
 
+
+
+int main(int argc, char* argv[])
+{
+	tdcs_init();
+	blink_led_init();
+
+	xTaskCreate(sd_task, "sd", 5*configMINIMAL_STACK_SIZE, NULL, 2, NULL);
+
+
+	vTaskStartScheduler();
 
 	return 0;
 }

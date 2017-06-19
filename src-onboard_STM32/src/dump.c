@@ -15,7 +15,7 @@
 static FATFS fs;
 static bool fs_mounted = false;
 
-void dump_init(dump_state_t * state, char * filename)
+void dump_init(dump_state_t * state, const char * filename)
 {
    FRESULT res;
    size_t i = 0;
@@ -49,7 +49,7 @@ void dump_init(dump_state_t * state, char * filename)
       }
       else if (res == FR_OK)
       {
-         trace_printf("dump file name '%s' already exists\n", fname);
+         //trace_printf("dump file name '%s' already exists\n", fname);
       }
       else
       {
