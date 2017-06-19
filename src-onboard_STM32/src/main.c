@@ -211,7 +211,7 @@ int main(int argc, char* argv[])
 	tdcs_init();
 	blink_led_init();
 
-	xTaskCreate(sd_task, "sd", 5*configMINIMAL_STACK_SIZE, NULL, 2, NULL);
+	xTaskCreate(sd_task, "sd", 3*configMINIMAL_STACK_SIZE, NULL, 2, NULL);
 
 
 	vTaskStartScheduler();
