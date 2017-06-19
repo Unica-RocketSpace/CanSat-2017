@@ -1,8 +1,28 @@
-#ifndef __OV7670_CONFIG_H__
-#define __OV7670_CONFIG_H__
+/*
+ * registers.h
+ *
+ *  Created on: 15 июня 2017 г.
+ *      Author: developer
+ */
 
-//#include <avr/pgmspace.h>
-#include "stdint.h"
+#ifndef DEFS_OV7670_H_
+#define DEFS_OV7670_H_
+
+struct regval_list
+{
+	uint8_t		reg_num;
+	uint8_t		value;
+};
+
+extern const struct regval_list qvga_ov7670[];
+extern const struct regval_list ov7670_qqvga[];
+extern const struct regval_list ov7670_fmt_rgb444[];
+extern const struct regval_list ov7670_fmt_rgb565[];
+extern const struct regval_list ov7670_fmt_rgb555[];
+extern const struct regval_list ov7670_fmt_yuv422[];
+extern const struct regval_list ov7670_default[];
+
+
 
 #define VGA_WIDTH                   ( 640 )
 #define VGA_HEIGHT                  ( 480 )
@@ -84,8 +104,8 @@
 #define REG_HSYEN                   ( 0x31 )        // HSYNC falling edge delay
 #define REG_HREF                    ( 0x32 )        // HREF pieces
 #define REG_TSLB                    ( 0x3a )        // lots of stuff
-#define   TSLB_YLAST                   	( 0x04 )    //   UYVY or VYUY - see com13
-#define   TSLB_UV                    		( 0x10 )    //   enable special effects
+#define   TSLB_YLAST                    ( 0x04 )    //   UYVY or VYUY - see com13
+#define   TSLB_UV                       ( 0x10 )    //   enable special effects
 #define   TSLB_NEGATIVE                 ( 0x20 )    //   enable special effects
 #define REG_COM11                   ( 0x3b )        // Control 11
 #define   COM11_NIGHT                   ( 0x80 )    //   Night mode enable
@@ -116,15 +136,15 @@
 #define   COM15_R00FF                   ( 0xc0 )    //              00 to FF
 #define   COM15_RGB565                  ( 0x10 )    //   RGB565 output
 #define   COM15_RGB555                  ( 0x30 )    //   RGB555 output
-#define 	COM15_RGB444                	( 0x10 )   	// 	 RGB444 output
+#define   COM15_RGB444                  ( 0x10 )    //   RGB444 output
 #define REG_COM16                   ( 0x41 )        // Control 16
 #define   COM16_AWBGAIN                 ( 0x08 )    //   AWB gain enable
 #define   COM16_DENOISE                 ( 0x10 )    //   Enable de-noise auto adjustment
-#define   COM16_EDGE    		            ( 0x20 )    //   Enable edge enhancement
+#define   COM16_EDGE                    ( 0x20 )    //   Enable edge enhancement
 #define REG_COM17                   ( 0x42 )        // Control 17
 #define   COM17_AECWIN                  ( 0xc0 )    //   AEC window - must match COM4
 #define   COM17_CBAR                    ( 0x08 )    //   DSP Color bar
-#define REG_DENOISE_STRENGTH				( 0x4c )   			// De-noise strength
+#define REG_DENOISE_STRENGTH            ( 0x4c )    // De-noise strength
 
 // size registers
 #define REG_SCALING_XSC             0x70
@@ -143,36 +163,36 @@
 // stored in 0x58.  Sign for v-red is bit 0, and up from there.
 //--------------------------------------------------------------------------------------
 #define REG_CMATRIX_BASE            ( 0x4f )
-#define REG_CMATRIX_1            ( 0x4f )
-#define REG_CMATRIX_2            ( 0x50 )
-#define REG_CMATRIX_3            ( 0x51 )
-#define REG_CMATRIX_4            ( 0x52 )
-#define REG_CMATRIX_5            ( 0x53 )
-#define REG_CMATRIX_6            ( 0x54 )
-#define CMATRIX_LEN                   ( 6 )
+#define REG_CMATRIX_1               ( 0x4f )
+#define REG_CMATRIX_2               ( 0x50 )
+#define REG_CMATRIX_3               ( 0x51 )
+#define REG_CMATRIX_4               ( 0x52 )
+#define REG_CMATRIX_5               ( 0x53 )
+#define REG_CMATRIX_6               ( 0x54 )
+#define CMATRIX_LEN                 ( 6 )
 #define REG_CMATRIX_SIGN            ( 0x58 )
 
-#define REG_BRIGHT                  ( 0x55 )        // Brightness
-#define REG_CONTRAST                 ( 0x56 )        // Contrast control
-#define REG_GFIX                    ( 0x69 )        // Fix gain control
-#define REG_GGAIN                   ( 0x6a )        // G channel AWB gain
-#define REG_DBLV                   	( 0x6b )        // PLL control
-#define REG_REG76                   ( 0x76 )        // OV's name
-#define R76_BLKPCOR                   ( 0x80 )    //   Black pixel correction enable
-#define R76_WHTPCOR                   ( 0x40 )    //   White pixel correction enable
-#define REG_RGB444                  ( 0x8c )        // RGB 444 control
-#define	R444_ENABLE                   ( 0x02 )    //   Turn on RGB444, overrides 5x5
-#define	R444_RGBX                     ( 0x01 )    //   Empty nibble at end
-#define R444_XBGR                 		 0x00
-#define REG_HAECC1                  ( 0x9f )        // Hist AEC/AGC control 1
-#define REG_HAECC2                  ( 0xa0 )        // Hist AEC/AGC control 2
-#define REG_BD50MAX                 ( 0xa5 )        // 50hz banding step limit */
-#define REG_HAECC3                  ( 0xa6 )        // Hist AEC/AGC control 3 */
-#define REG_HAECC4                  ( 0xa7 )        // Hist AEC/AGC control 4 */
-#define REG_HAECC5                  ( 0xa8 )        // Hist AEC/AGC control 5 */
-#define REG_HAECC6                  ( 0xa9 )        // Hist AEC/AGC control 6 */
-#define REG_HAECC7                  ( 0xaa )        // Hist AEC/AGC control 7 */
-#define REG_BD60MAX                 ( 0xab )        // 60hz banding step limit */
+#define REG_BRIGHT              ( 0x55 )        // Brightness
+#define REG_CONTRAST            ( 0x56 )        // Contrast control
+#define REG_GFIX                ( 0x69 )        // Fix gain control
+#define REG_GGAIN               ( 0x6a )        // G channel AWB gain
+#define REG_DBLV                ( 0x6b )        // PLL control
+#define REG_REG76               ( 0x76 )        // OV's name
+#define R76_BLKPCOR                 ( 0x80 )    //   Black pixel correction enable
+#define R76_WHTPCOR                 ( 0x40 )    //   White pixel correction enable
+#define REG_RGB444              ( 0x8c )        // RGB 444 control
+#define	R444_ENABLE                 ( 0x02 )    //   Turn on RGB444, overrides 5x5
+#define	R444_RGBX                   ( 0x01 )    //   Empty nibble at end
+#define R444_XBGR                   ( 0x00 )
+#define REG_HAECC1              ( 0x9f )        // Hist AEC/AGC control 1
+#define REG_HAECC2              ( 0xa0 )        // Hist AEC/AGC control 2
+#define REG_BD50MAX             ( 0xa5 )        // 50hz banding step limit */
+#define REG_HAECC3              ( 0xa6 )        // Hist AEC/AGC control 3 */
+#define REG_HAECC4              ( 0xa7 )        // Hist AEC/AGC control 4 */
+#define REG_HAECC5              ( 0xa8 )        // Hist AEC/AGC control 5 */
+#define REG_HAECC6              ( 0xa9 )        // Hist AEC/AGC control 6 */
+#define REG_HAECC7              ( 0xaa )        // Hist AEC/AGC control 7 */
+#define REG_BD60MAX             ( 0xab )        // 60hz banding step limit */
 
 // QVGA setting
 #define COM7_QVGA                   0x00
@@ -222,69 +242,7 @@
 #define REG_MANU (0x67) // special effects register 1
 #define REG_MANV (0x68) // special effects register 2
 
-#define EM (0xf0)
-
-
-struct regval_list
-{
-    uint8_t       reg_num;
-    uint8_t       value;
-};
-
-
-/*static struct regval_list ov7670_effects[][4] = {
-			{ {REG_TSLB, TSLB_YLAST}, 													{REG_MANU, 0xc0}, {REG_MANV, 0x80}, {EM, EM} }, // normal, no effect
-			{ {REG_TSLB, TSLB_YLAST | TSLB_UV}, 								{REG_MANU, 0xa0}, {REG_MANV, 0x40}, {EM, EM} }, // Antique
-			{ {REG_TSLB, TSLB_YLAST | TSLB_UV}, 								{REG_MANU, 0x80}, {REG_MANV, 0xc0}, {EM, EM} }, // Bluish
-			{ {REG_TSLB, TSLB_YLAST | TSLB_UV}, 								{REG_MANU, 0x40}, {REG_MANV, 0x40}, {EM, EM} }, // Greenish
-			{ {REG_TSLB, TSLB_YLAST | TSLB_UV}, 								{REG_MANU, 0xc0}, {REG_MANV, 0x80}, {EM, EM} }, // Redish
-			{ {REG_TSLB, TSLB_YLAST | TSLB_UV}, 								{REG_MANU, 0x80}, {REG_MANV, 0x80}, {EM, EM} }, // B&W
-			{ {REG_TSLB, TSLB_YLAST | TSLB_NEGATIVE}, 					{REG_MANU, 0x80}, {REG_MANV, 0x80}, {EM, EM} }, // Negative
-			{ {REG_TSLB, TSLB_YLAST | TSLB_UV | TSLB_NEGATIVE}, {REG_MANU, 0x80}, {REG_MANV, 0x80}, {EM, EM} }, // B&W negative
-};
-
-static struct regval_list ov7670_qqvga[] = {
-		{REG_HSTART,0x16},
-		{REG_HSTOP,	0x04},
-		{REG_HREF, 0x24},
-		{REG_VSTART, 0x02},
-		{REG_VSTOP, 0x7a},
-		{REG_VREF, 0x0a},
-
-		// scaling
-    {REG_COM3, COM3_QQVGA},
-    {REG_COM14, COM14_QQVGA},
-    {REG_SCALING_XSC, SCALING_XSC_QQVGA},
-    {REG_SCALING_YSC, SCALING_YSC_QQVGA},
-    {REG_SCALING_DCWCTR, SCALING_DCWCTR_QQVGA},
-    {REG_SCALING_PCLK_DIV, SCALING_PCLK_DIV_QQVGA},
-    {REG_SCALING_PCLK_DELAY, SCALING_PCLK_DELAY_QQVGA},
-
-		// scaling (old)
-    / *
-		{REG_COM3, COM3_DCWEN},
-		{REG_COM14, COM14_DCWEN | COM14_MAN_SCAL | COM14_PCLK_DIV4 }, //  0x1a
-		{SCALING_DCWCTR, SCALING_DCWCTR_QQVGA},
-		{SCALING_PCLK_DIV, SCALING_PCLK_DIV_QQVGA},
-		* /
-
-		{EM, EM}, {EM, EM}
-};
-*/
-extern struct regval_list ov7670_qvga[];
-
-//extern struct regval_list ov7670_fmt_rgb444[];
-
-extern struct regval_list ov7670_fmt_rgb565[];
-
-//extern struct regval_list ov7670_fmt_rgb555[];
-//extern struct regval_list ov7670_fmt_yuv422[];
-
-
-extern struct regval_list ov7670_default[];
-
-//static struct regval_list qqvga_rgb444[];
 
 
 
-#endif  // #ifndef __OV7670_CONFIG_H__
+#endif /* DEFS_OV7670_H_ */

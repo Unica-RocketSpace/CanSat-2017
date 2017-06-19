@@ -15,7 +15,8 @@
 #include <task.h>
 
 #include "tim_dma_control.h"
-#include "registers.h"
+
+#include "defs_OV7670.h"
 
 #define DMA_KICK_PERIOD (20)
 
