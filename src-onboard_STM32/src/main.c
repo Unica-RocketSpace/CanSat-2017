@@ -30,7 +30,6 @@ typedef enum
 static const ov7670_flag OV7670_FLAG = OV7670_SE_FRAME;
 static const char filename[] = "video-";
 
-size_t href_cnt = 0;
 static QueueHandle_t _fullBufferQ;
 static StaticQueue_t _fullBufferQ_ob;
 static uint8_t _fullBufferQ_data[BUFFER_CNT * sizeof(uint8_t *)];
@@ -122,11 +121,7 @@ again:
 	size_t buff_cnt = 0;
 	while (buff_cnt < BUFFER_READ_COUNT)
 	{
-		volatile size_t tmp;
-		__disable_irq();
-		tmp = href_cnt;
-		__enable_irq();
-		if (tmp >= 2)
+		if (camera_fifo_lines_left() <= BUFFER_READ_COUNT - 2)
 		{
 			uint8_t * buffer;
 			xQueueReceive(_emptyBufferQ, &buffer, portMAX_DELAY);

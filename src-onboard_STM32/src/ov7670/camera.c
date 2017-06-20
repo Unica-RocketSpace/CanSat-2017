@@ -106,6 +106,15 @@ void camera_fifo_read(void * buffer, size_t bufferSize)
 	tdcs_pull_data(buffer, bufferSize);
 }
 
+size_t camera_fifo_lines_left()
+{
+	volatile size_t tmp;
+	__disable_irq();
+	tmp = _hrefCntLeft;
+	__enable_irq();
+	return tmp;
+}
+
 
 void EXTI15_10_IRQHandler()
 {

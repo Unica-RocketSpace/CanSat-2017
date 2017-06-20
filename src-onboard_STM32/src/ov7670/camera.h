@@ -17,6 +17,7 @@ void camera_wait_vsync();
 
 void camera_fifo_reset_write();
 void camera_fifo_start_capture(size_t href_count);
+size_t camera_fifo_lines_left();
 
 void camera_fifo_reset_read();
 void camera_fifo_read(void * buffer, size_t bufferSize);
