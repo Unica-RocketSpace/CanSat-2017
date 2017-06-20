@@ -159,7 +159,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="FreeRTOS"/>
+						<entry excluding="portable/MemMang/heap_5.c|portable/MemMang/heap_4.c|portable/MemMang/heap_2.c|portable/MemMang/heap_1.c|portable/MemMang/heap_3.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="FreeRTOS"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="FreeRTOS-usr"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="fatfs"/>
 						<entry excluding="main2.c|main0.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
@@ -338,7 +338,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="FreeRTOS"/>
+						<entry excluding="portable/MemMang/heap_5.c|portable/MemMang/heap_4.c|portable/MemMang/heap_2.c|portable/MemMang/heap_1.c|portable/MemMang/heap_3.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="FreeRTOS"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="FreeRTOS-usr"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="fatfs"/>
 						<entry excluding="main2.c|main0.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
@@ -519,7 +519,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="FreeRTOS"/>
+						<entry excluding="portable/MemMang/heap_5.c|portable/MemMang/heap_4.c|portable/MemMang/heap_2.c|portable/MemMang/heap_1.c|portable/MemMang/heap_3.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="FreeRTOS"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="FreeRTOS-usr"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="fatfs"/>
 						<entry excluding="main2.c|main0.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
@@ -564,22 +564,16 @@
 	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
 	<storageModule moduleId="scannerConfiguration">
 		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		<scannerConfigBuildInfo instanceId="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.1807429590;ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.1807429590.;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.1657208172;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input.1586781503">
-			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		</scannerConfigBuildInfo>
-		<scannerConfigBuildInfo instanceId="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.1807429590.1775949794;ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.1807429590.1775949794.;ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.1818515718;ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.input.1938427589">
-			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		</scannerConfigBuildInfo>
 		<scannerConfigBuildInfo instanceId="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.1807429590.1037333872;ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.1807429590.1037333872.;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.1824311773;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input.924869508">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
-		<scannerConfigBuildInfo instanceId="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.1807429590.1775949794;ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.1807429590.1775949794.;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.849043552;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input.561032116">
-			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		</scannerConfigBuildInfo>
-		<scannerConfigBuildInfo instanceId="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.1807429590;ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.1807429590.;ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.1529762343;ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.input.257659545">
+		<scannerConfigBuildInfo instanceId="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.1807429590;ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.1807429590.;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.1657208172;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input.1586781503">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
 		<scannerConfigBuildInfo instanceId="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.1807429590.1037333872;ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.1807429590.1037333872.;ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.1055003009;ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.input.276153881">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.1807429590;ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.1807429590.;ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.1529762343;ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.input.257659545">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
 	</storageModule>
