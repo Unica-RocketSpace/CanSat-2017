@@ -25,6 +25,9 @@
 #include "registers.h"
 
 
+#define BUFFER_SIZE			(1280*6)
+#define BUFFER_CNT 			(2)
+#define BUFFER_READ_COUNT	(640*300*2/BUFFER_SIZE)		//640*300*2/BUFFER_SIZE
 
 typedef enum
 {
@@ -36,20 +39,6 @@ typedef enum
 static const ov7670_flag OV7670_FLAG = OV7670_SE_FRAME;
 static const char filename[] = "video-";
 
-#define BUFFER_SIZE			(1280*5)
-#define BUFFER_CNT 			(2)
-#define BUFFER_READ_COUNT	(640*300*2/BUFFER_SIZE)		//640*300*2/BUFFER_SIZE
-
-// ----- main() ---------------------------------------------------------------
-
-// Sample pragmas to cope with warnings. Please note the related line at
-// the end of this function, used to pop the compiler diagnostics status.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-#pragma GCC diagnostic ignored "-Wmissing-declarations"
-#pragma GCC diagnostic ignored "-Wreturn-type"
-
-
 size_t href_cnt = 0;
 static QueueHandle_t _fullBufferQ;
 static StaticQueue_t _fullBufferQ_ob;
@@ -58,6 +47,12 @@ static uint8_t _fullBufferQ_data[BUFFER_CNT * sizeof(uint8_t *)];
 static QueueHandle_t _emptyBufferQ;
 static StaticQueue_t _emptyBufferQ_ob;
 static uint8_t _emptyBufferQ_data[BUFFER_CNT * sizeof(uint8_t *)];
+
+static StackType_t _cam_task_stack[120];
+static StaticTask_t _cam_taskb_ob;
+
+static StackType_t _sd_task_stack[400];
+static StaticTask_t _sd_task_ob;
 
 static dump_state_t stream_file;
 static uint8_t _buffers[BUFFER_CNT][BUFFER_SIZE];
@@ -116,9 +111,6 @@ void blink_led()
 
 void cam_task(void* args);
 
-
-static StackType_t _cam_task_stack[120];
-static StaticTask_t _cam_taskb_ob;
 
 void sd_task(void * args)
 {
@@ -221,13 +213,9 @@ again:
 }
 
 
-
-static StackType_t _sd_task_stack[120];
-static StaticTask_t _sd_task_ob;
-
-
 int main(int argc, char* argv[])
 {
+	(void)argc, (void)argv;
 	tdcs_init();
 	blink_led_init();
 
@@ -252,6 +240,3 @@ void EXTI15_10_IRQHandler()
 	}
 }
 
-#pragma GCC diagnostic pop
-
-// ----------------------------------------------------------------------------
