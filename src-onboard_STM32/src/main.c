@@ -138,8 +138,22 @@ again:
 	goto again;
 }
 
-
 int main(int argc, char* argv[])
+{
+	(void)argc, (void)argv;
+
+	camera_init();
+	//ov7670_sccb_init();
+
+
+
+
+
+	return 0;
+}
+
+
+int main_x(int argc, char* argv[])
 {
 	(void)argc, (void)argv;
 	blink_led_init();

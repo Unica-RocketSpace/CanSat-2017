@@ -1,4 +1,4 @@
-#include "defs_ov7670.h"
+#include "defs_OV7670.h"
 
 /*
  * The default register settings, as obtained from OmniVision.  There

@@ -11,8 +11,8 @@
 
 #include "diag/Trace.h"
 
-#include "defs_ov7670.h"
-#include "ov7670.h"
+#include "defs_OV7670.h"
+#include "OV7670.h"
 
 
 // from http://elixir.free-electrons.com/linux/v4.11.6/source/drivers/media/i2c/ov7670.c#L187
@@ -41,7 +41,7 @@ static void ov7670_sccb_init()
 	//i2c.I2C_Ack = I2C_Ack_Enable;
 	i2c.I2C_Ack = I2C_Ack_Disable;
 	i2c.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
-	i2c.I2C_ClockSpeed = 100000;
+	i2c.I2C_ClockSpeed = 10000;
 	I2C_Init(I2C1, &i2c);
 	I2C_ITConfig(I2C1, I2C_IT_ERR, ENABLE);
 	I2C_Cmd(I2C1, ENABLE);
@@ -72,7 +72,7 @@ static int ov7670_read(unsigned char reg, unsigned char *value)
 	}
 
 	// Send slave address (camera write address)
-	I2C_Send7bitAddress(I2C1, OV7670_I2C_ADDR, I2C_Direction_Transmitter);
+	I2C_Send7bitAddress(I2C1, OV7670_SCCB_WRITE_ADDR, I2C_Direction_Transmitter);
 	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)) {
 		if ((timeout--) == 0) {
 			trace_printf("Slave address timeout\r\n");
@@ -101,7 +101,7 @@ static int ov7670_read(unsigned char reg, unsigned char *value)
 	}
 
 	// Send slave address (camera read address)
-	I2C_Send7bitAddress(I2C1, OV7670_I2C_ADDR, I2C_Direction_Receiver);
+	I2C_Send7bitAddress(I2C1, OV7670_SCCB_WRITE_ADDR, I2C_Direction_Receiver);
 	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)) {
 		if ((timeout--) == 0) {
 			trace_printf("Slave address timeout\r\n");
@@ -145,7 +145,7 @@ static int ov7670_write(unsigned char reg, unsigned char value)
 	}
 
 	// Send slave address (camera write address)
-	I2C_Send7bitAddress(I2C1, OV7670_I2C_ADDR, I2C_Direction_Transmitter);
+	I2C_Send7bitAddress(I2C1, OV7670_SCCB_WRITE_ADDR, I2C_Direction_Transmitter);
 	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)) {
 		if ((timeout--) == 0) {
 			trace_printf("Slave address timeout\r\n");
@@ -393,6 +393,8 @@ static int ov7670_detect(void)
 
 int ov7670_init(struct ov7670_config * config)
 {
+	ov7670_sccb_init();
+
 	struct ov7670_info * const info = &_info;
 	struct v4l2_fract tpf;
 	int ret;
@@ -433,7 +435,6 @@ int ov7670_init(struct ov7670_config * config)
 	if (info->pclk_hb_disable)
 		ov7670_write(REG_COM10, COM10_PCLK_HB);
 
-	ov7670_sccb_init();
 	return 0;
 }
 

@@ -1,7 +1,7 @@
 #include "camera.h"
 
 #include "defs_hw.h"
-#include "ov7670.h"
+#include "OV7670.h"
 #include "tim_dma_control.h"
 #include "diag/Trace.h"
 
@@ -18,6 +18,7 @@ static EXTI_InitTypeDef _extiCfg =
 
 int camera_init()
 {
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 	// Настраиваем интерфейсные пины для фифо
 	GPIO_InitTypeDef OV7670_initialise;
 	OV7670_initialise.GPIO_Pin = VIDEO_DATA | VIDEO_HREF | VIDEO_VSYNC;
@@ -49,10 +50,11 @@ int camera_init()
 
 	tdcs_init();
 
+	int ret;
 	struct ov7670_config cfg;
-	cfg.clock_speed = 24;
+	cfg.clock_speed = 12;
 	cfg.pclk_hb_disable = false;
-	int ret = ov7670_init(&cfg);
+	ret = ov7670_init(&cfg);
 	if (ret)
 		trace_printf("cam init_fails: %d\n", ret);
 

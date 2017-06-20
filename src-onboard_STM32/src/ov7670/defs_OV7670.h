@@ -18,7 +18,8 @@
 #define QCIF_WIDTH                  ( 176 )
 #define QCIF_HEIGHT                 ( 144 )
 
-#define OV7670_I2C_ADDR             ( 0x42 )
+#define OV7670_SCCB_WRITE_ADDR      ( 0x42 )
+#define OV7670_SCCB_READ_ADDR		( 0x43 )
 
 #define REG_GAIN                    ( 0x00 )        // Gain lower 8 bits (rest in vref)
 #define REG_BLUE                    ( 0x01 )        // blue gain
