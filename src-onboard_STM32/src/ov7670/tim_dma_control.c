@@ -16,7 +16,7 @@
 
 #include "tim_dma_control.h"
 
-#include "defs_OV7670.h"
+#include "defs_hw.h"
 
 #define DMA_KICK_PERIOD (20)
 
@@ -152,22 +152,6 @@ void tdcs_init()			//TIM-DMA CONTROLLING SYSTEM
 	p.GPIO_Pin = TIM3_OUT_REMAP_REG;	//A6
 	p.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOA, &p);*/
-
-	GPIO_InitTypeDef OV7670_initialise;
-	OV7670_initialise.GPIO_Pin = VIDEO_DATA | VIDEO_HREF | VIDEO_VSYNC;
-	OV7670_initialise.GPIO_Speed = GPIO_Speed_50MHz;
-	OV7670_initialise.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-	GPIO_Init(GPIOA, &OV7670_initialise);
-
-	OV7670_initialise.GPIO_Pin = VIDEO_RRST | VIDEO_WRST;
-	OV7670_initialise.GPIO_Speed = GPIO_Speed_50MHz;
-	OV7670_initialise.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOA, &OV7670_initialise);
-
-	OV7670_initialise.GPIO_Pin = VIDEO_OE | VIDEO_WE;
-	OV7670_initialise.GPIO_Speed = GPIO_Speed_50MHz;
-	OV7670_initialise.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOB, &OV7670_initialise);
 
 
 	// Настройки NVIC для прерываний от DMA. Так же не меняются, настроим сразу

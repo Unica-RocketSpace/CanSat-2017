@@ -1,96 +1,133 @@
-#include "defs_OV7670.h"
-
-#include <stdlib.h>
-
-// from http://elixir.free-electrons.com/linux/v4.11.6/source/drivers/media/i2c/ov7670.c#L187
+#include "defs_ov7670.h"
 
 /*
- * Here we'll try to encapsulate the changes for just the output
- * video format.
+ * The default register settings, as obtained from OmniVision.  There
+ * is really no making sense of most of these - lots of "reserved" values
+ * and such.
  *
- * RGB656 and YUV422 come from OV; RGB444 is homebrewed.
- *
- * IMPORTANT RULE: the first entry must be for COM7, see ov7670_s_fmt for why.
+ * These settings give VGA YUYV.
  */
 
-struct ov7670_win_size {
-	int	width;
-	int	height;
-	unsigned char com7_bit;
-	int	hstart;		/* Start/stop values for the camera.  Note */
-	int	hstop;		/* that they do not always make complete */
-	int	vstart;		/* sense to humans, but evidently the sensor */
-	int	vstop;		/* will do the right thing... */
-	struct regval_list *regs; /* Regs to tweak */
+
+const struct regval_list ov7670_default_regs[] = {
+	{ REG_COM7, COM7_RESET },
+/*
+ * Clock scale: 3 = 15fps
+ *              2 = 20fps
+ *              1 = 30fps
+ */
+	{ REG_CLKRC, 0x1 },	/* OV: clock scale (30 fps) */
+	{ REG_TSLB,  0x04 },	/* OV */
+	{ REG_COM7, 0 },	/* VGA */
+	/*
+	 * Set the hardware window.  These values from OV don't entirely
+	 * make sense - hstop is less than hstart.  But they work...
+	 */
+	{ REG_HSTART, 0x13 },	{ REG_HSTOP, 0x01 },
+	{ REG_HREF, 0xb6 },	{ REG_VSTART, 0x02 },
+	{ REG_VSTOP, 0x7a },	{ REG_VREF, 0x0a },
+
+	{ REG_COM3, 0 },	{ REG_COM14, 0 },
+	/* Mystery scaling numbers */
+	{ 0x70, 0x3a },		{ 0x71, 0x35 },
+	{ 0x72, 0x11 },		{ 0x73, 0xf0 },
+	{ 0xa2, 0x02 },		{ REG_COM10, 0x0 },
+
+	/* Gamma curve values */
+	{ 0x7a, 0x20 },		{ 0x7b, 0x10 },
+	{ 0x7c, 0x1e },		{ 0x7d, 0x35 },
+	{ 0x7e, 0x5a },		{ 0x7f, 0x69 },
+	{ 0x80, 0x76 },		{ 0x81, 0x80 },
+	{ 0x82, 0x88 },		{ 0x83, 0x8f },
+	{ 0x84, 0x96 },		{ 0x85, 0xa3 },
+	{ 0x86, 0xaf },		{ 0x87, 0xc4 },
+	{ 0x88, 0xd7 },		{ 0x89, 0xe8 },
+
+	/* AGC and AEC parameters.  Note we start by disabling those features,
+	   then turn them only after tweaking the values. */
+	{ REG_COM8, COM8_FASTAEC | COM8_AECSTEP | COM8_BFILT },
+	{ REG_GAIN, 0 },	{ REG_AECH, 0 },
+	{ REG_COM4, 0x40 }, /* magic reserved bit */
+	{ REG_COM9, 0x18 }, /* 4x gain + magic rsvd bit */
+	{ REG_BD50MAX, 0x05 },	{ REG_BD60MAX, 0x07 },
+	{ REG_AEW, 0x95 },	{ REG_AEB, 0x33 },
+	{ REG_VPT, 0xe3 },	{ REG_HAECC1, 0x78 },
+	{ REG_HAECC2, 0x68 },	{ 0xa1, 0x03 }, /* magic */
+	{ REG_HAECC3, 0xd8 },	{ REG_HAECC4, 0xd8 },
+	{ REG_HAECC5, 0xf0 },	{ REG_HAECC6, 0x90 },
+	{ REG_HAECC7, 0x94 },
+	{ REG_COM8, COM8_FASTAEC|COM8_AECSTEP|COM8_BFILT|COM8_AGC|COM8_AEC },
+
+	/* Almost all of these are magic "reserved" values.  */
+	{ REG_COM5, 0x61 },	{ REG_COM6, 0x4b },
+	{ 0x16, 0x02 },		{ REG_MVFP, 0x07 },
+	{ 0x21, 0x02 },		{ 0x22, 0x91 },
+	{ 0x29, 0x07 },		{ 0x33, 0x0b },
+	{ 0x35, 0x0b },		{ 0x37, 0x1d },
+	{ 0x38, 0x71 },		{ 0x39, 0x2a },
+	{ REG_COM12, 0x78 },	{ 0x4d, 0x40 },
+	{ 0x4e, 0x20 },		{ REG_GFIX, 0 },
+	{ 0x6b, 0x4a },		{ 0x74, 0x10 },
+	{ 0x8d, 0x4f },		{ 0x8e, 0 },
+	{ 0x8f, 0 },		{ 0x90, 0 },
+	{ 0x91, 0 },		{ 0x96, 0 },
+	{ 0x9a, 0 },		{ 0xb0, 0x84 },
+	{ 0xb1, 0x0c },		{ 0xb2, 0x0e },
+	{ 0xb3, 0x82 },		{ 0xb8, 0x0a },
+
+	/* More reserved magic, some of which tweaks white balance */
+	{ 0x43, 0x0a },		{ 0x44, 0xf0 },
+	{ 0x45, 0x34 },		{ 0x46, 0x58 },
+	{ 0x47, 0x28 },		{ 0x48, 0x3a },
+	{ 0x59, 0x88 },		{ 0x5a, 0x88 },
+	{ 0x5b, 0x44 },		{ 0x5c, 0x67 },
+	{ 0x5d, 0x49 },		{ 0x5e, 0x0e },
+	{ 0x6c, 0x0a },		{ 0x6d, 0x55 },
+	{ 0x6e, 0x11 },		{ 0x6f, 0x9f }, /* "9e for advance AWB" */
+	{ 0x6a, 0x40 },		{ REG_BLUE, 0x40 },
+	{ REG_RED, 0x60 },
+	{ REG_COM8, COM8_FASTAEC|COM8_AECSTEP|COM8_BFILT|COM8_AGC|COM8_AEC|COM8_AWB },
+
+	/* Matrix coefficients */
+	{ 0x4f, 0x80 },		{ 0x50, 0x80 },
+	{ 0x51, 0 },		{ 0x52, 0x22 },
+	{ 0x53, 0x5e },		{ 0x54, 0x80 },
+	{ 0x58, 0x9e },
+
+	{ REG_COM16, COM16_AWBGAIN },	{ REG_EDGE, 0 },
+	{ 0x75, 0x05 },		{ 0x76, 0xe1 },
+	{ 0x4c, 0 },		{ 0x77, 0x01 },
+	{ REG_COM13, 0xc3 },	{ 0x4b, 0x09 },
+	{ 0xc9, 0x60 },		{ REG_COM16, 0x38 },
+	{ 0x56, 0x40 },
+
+	{ 0x34, 0x11 },		{ REG_COM11, COM11_EXP|COM11_HZAUTO },
+	{ 0xa4, 0x88 },		{ 0x96, 0 },
+	{ 0x97, 0x30 },		{ 0x98, 0x20 },
+	{ 0x99, 0x30 },		{ 0x9a, 0x84 },
+	{ 0x9b, 0x29 },		{ 0x9c, 0x03 },
+	{ 0x9d, 0x4c },		{ 0x9e, 0x3f },
+	{ 0x78, 0x04 },
+
+	/* Extra-weird stuff.  Some sort of multiplexor register */
+	{ 0x79, 0x01 },		{ 0xc8, 0xf0 },
+	{ 0x79, 0x0f },		{ 0xc8, 0x00 },
+	{ 0x79, 0x10 },		{ 0xc8, 0x7e },
+	{ 0x79, 0x0a },		{ 0xc8, 0x80 },
+	{ 0x79, 0x0b },		{ 0xc8, 0x01 },
+	{ 0x79, 0x0c },		{ 0xc8, 0x0f },
+	{ 0x79, 0x0d },		{ 0xc8, 0x20 },
+	{ 0x79, 0x09 },		{ 0xc8, 0x80 },
+	{ 0x79, 0x02 },		{ 0xc8, 0xc0 },
+	{ 0x79, 0x03 },		{ 0xc8, 0x40 },
+	{ 0x79, 0x05 },		{ 0xc8, 0x30 },
+	{ 0x79, 0x26 },
+
+	{ 0xff, 0xff },	/* END MARKER */
 };
 
 
-static int ov7670_read(unsigned char reg, unsigned char *value)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	u8 data = reg;
-	struct i2c_msg msg;
-	int ret;
-
-	/*
-	 * Send out the register address...
-	 */
-	msg.addr = client->addr;
-	msg.flags = 0;
-	msg.len = 1;
-	msg.buf = &data;
-	ret = i2c_transfer(client->adapter, &msg, 1);
-	if (ret < 0) {
-		printk(KERN_ERR "Error %d on register write\n", ret);
-		return ret;
-	}
-	/*
-	 * ...then read back the result.
-	 */
-	msg.flags = I2C_M_RD;
-	ret = i2c_transfer(client->adapter, &msg, 1);
-	if (ret >= 0) {
-		*value = data;
-		ret = 0;
-	}
-	return ret;
-}
-
-
-static int ov7670_write(struct v4l2_subdev *sd, unsigned char reg,
-		unsigned char value)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct i2c_msg msg;
-	unsigned char data[2] = { reg, value };
-	int ret;
-
-	msg.addr = client->addr;
-	msg.flags = 0;
-	msg.len = 2;
-	msg.buf = data;
-	ret = i2c_transfer(client->adapter, &msg, 1);
-	if (ret > 0)
-		ret = 0;
-	if (reg == REG_COM7 && (value & COM7_RESET))
-		msleep(5);  /* Wait for reset to run */
-	return ret;
-}
-
-
-static int ov7670_write_array(struct v4l2_subdev *sd, struct regval_list *vals)
-{
-	while (vals->reg_num != 0xff || vals->value != 0xff) {
-		int ret = ov7670_write(sd, vals->reg_num, vals->value);
-		if (ret < 0)
-			return ret;
-		vals++;
-	}
-	return 0;
-}
-
-
-static struct regval_list ov7670_fmt_yuv422[] = {
+const struct regval_list ov7670_fmt_yuv422[] = {
 	{ REG_COM7, 0x0 },  /* Selects YUV mode */
 	{ REG_RGB444, 0 },	/* No RGB444 please */
 	{ REG_COM1, 0 },	/* CCIR601 */
@@ -106,7 +143,7 @@ static struct regval_list ov7670_fmt_yuv422[] = {
 	{ 0xff, 0xff },
 };
 
-static struct regval_list ov7670_fmt_rgb565[] = {
+const struct regval_list ov7670_fmt_rgb565[] = {
 	{ REG_COM7, COM7_RGB },	/* Selects RGB mode */
 	{ REG_RGB444, 0 },	/* No RGB444 please */
 	{ REG_COM1, 0x0 },	/* CCIR601 */
@@ -122,7 +159,7 @@ static struct regval_list ov7670_fmt_rgb565[] = {
 	{ 0xff, 0xff },
 };
 
-static struct regval_list ov7670_fmt_rgb444[] = {
+const struct regval_list ov7670_fmt_rgb444[] = {
 	{ REG_COM7, COM7_RGB },	/* Selects RGB mode */
 	{ REG_RGB444, R444_ENABLE },	/* Enable xxxxrrrr ggggbbbb */
 	{ REG_COM1, 0x0 },	/* CCIR601 */
@@ -138,7 +175,7 @@ static struct regval_list ov7670_fmt_rgb444[] = {
 	{ 0xff, 0xff },
 };
 
-static struct regval_list ov7670_fmt_raw[] = {
+const struct regval_list ov7670_fmt_raw[] = {
 	{ REG_COM7, COM7_BAYER },
 	{ REG_COM13, 0x08 }, /* No gamma, magic rsvd bit */
 	{ REG_COM16, 0x3d }, /* Edge enhancement, denoise */
@@ -147,49 +184,13 @@ static struct regval_list ov7670_fmt_raw[] = {
 };
 
 
-
-
-/*
- * Store information about the video data format.  The color matrix
- * is deeply tied into the format, so keep the relevant values here.
- * The magic matrix numbers come from OmniVision.
- */
-static struct ov7670_format_struct {
-	struct regval_list *regs;
-	int cmatrix[CMATRIX_LEN];
-} ov7670_formats[] = {
-	{
-		.regs 		= ov7670_fmt_yuv422,
-		.cmatrix	= { 128, -128, 0, -34, -94, 128 },
-	},
-	{
-		.regs		= ov7670_fmt_rgb444,
-		.cmatrix	= { 179, -179, 0, -61, -176, 228 },
-	},
-	{
-		.regs		= ov7670_fmt_rgb565,
-		.cmatrix	= { 179, -179, 0, -61, -176, 228 },
-	},
-	{
-		.regs 		= ov7670_fmt_raw,
-		.cmatrix	= { 0, 0, 0, 0, 0, 0 },
-	},
-};
-#define N_OV7670_FMTS ARRAY_SIZE(ov7670_formats)
-
-
-
-/*
- * Then there is the issue of window sizes.  Try to capture the info here.
- */
-
 /*
  * QCIF mode is done (by OV) in a very strange way - it actually looks like
  * VGA with weird scaling options - they do *not* use the canned QCIF mode
  * which is allegedly provided by the sensor.  So here's the weird register
  * settings.
  */
-static struct regval_list ov7670_qcif_regs[] = {
+const struct regval_list ov7670_qcif_regs[] = {
 	{ REG_COM3, COM3_SCALEEN|COM3_DCWEN },
 	{ REG_COM3, COM3_DCWEN },
 	{ REG_COM14, COM14_DCWEN | 0x01},
@@ -207,94 +208,3 @@ static struct regval_list ov7670_qcif_regs[] = {
 	{ REG_COM13, 0xc0 },
 	{ 0xff, 0xff },
 };
-
-static struct ov7670_win_size ov7670_win_sizes[] = {
-	/* VGA */
-	{
-		.width		= VGA_WIDTH,
-		.height		= VGA_HEIGHT,
-		.com7_bit	= COM7_FMT_VGA,
-		.hstart		= 158,	/* These values from */
-		.hstop		=  14,	/* Omnivision */
-		.vstart		=  10,
-		.vstop		= 490,
-		.regs		= NULL,
-	},
-	/* CIF */
-	{
-		.width		= CIF_WIDTH,
-		.height		= CIF_HEIGHT,
-		.com7_bit	= COM7_FMT_CIF,
-		.hstart		= 170,	/* Empirically determined */
-		.hstop		=  90,
-		.vstart		=  14,
-		.vstop		= 494,
-		.regs		= NULL,
-	},
-	/* QVGA */
-	{
-		.width		= QVGA_WIDTH,
-		.height		= QVGA_HEIGHT,
-		.com7_bit	= COM7_FMT_QVGA,
-		.hstart		= 168,	/* Empirically determined */
-		.hstop		=  24,
-		.vstart		=  12,
-		.vstop		= 492,
-		.regs		= NULL,
-	},
-	/* QCIF */
-	{
-		.width		= QCIF_WIDTH,
-		.height		= QCIF_HEIGHT,
-		.com7_bit	= COM7_FMT_VGA, /* see comment above */
-		.hstart		= 456,	/* Empirically determined */
-		.hstop		=  24,
-		.vstart		=  14,
-		.vstop		= 494,
-		.regs		= ov7670_qcif_regs,
-	}
-};
-
-
-
-
-static int ov7670_set_fmt(struct ov7670_format_struct *ovfmt, struct ov7670_win_size * wsize)
-{
-	unsigned char com7;
-	int ret;
-
-	/*
-	 * COM7 is a pain in the ass, it doesn't like to be read then
-	 * quickly written afterward.  But we have everything we need
-	 * to set it absolutely here, as long as the format-specific
-	 * register sets list it first.
-	 */
-	com7 = ovfmt->regs[0].value;
-	com7 |= wsize->com7_bit;
-	ov7670_write(REG_COM7, com7);
-	/*
-	 * Now write the rest of the array.  Also store start/stops
-	 */
-	ov7670_write_array(ovfmt->regs + 1);
-	ov7670_set_hw(wsize->hstart, wsize->hstop, wsize->vstart,
-			wsize->vstop);
-	ret = 0;
-	if (wsize->regs)
-		ret = ov7670_write_array(wsize->regs);
-
-	/*
-	 * If we're running RGB565, we must rewrite clkrc after setting
-	 * the other parameters or the image looks poor.  If we're *not*
-	 * doing RGB565, we must not rewrite clkrc or the image looks
-	 * *really* poor.
-	 *
-	 * (Update) Now that we retain clkrc state, we should be able
-	 * to write it unconditionally, and that will make the frame
-	 * rate persistent too.
-	 */
-	/*
-	if (ret == 0)
-		ret = ov7670_write(REG_CLKRC, info->clkrc);
-	*/
-	return 0;
-}

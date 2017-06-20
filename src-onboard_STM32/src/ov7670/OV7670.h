@@ -1,22 +1,52 @@
-#ifndef OV7670_H_
-#define OV7670_H_
+/*
+ * registers.h
+ *
+ *  Created on: 15 июня 2017 г.
+ *      Author: developer
+ */
+
+#ifndef OV7670_OV7670_H_
+#define OV7670_OV7670_H_
+
+#include <stdint.h>
+#include <stdbool.h>
 
 
 typedef enum
 {
-	OV7670_MODE_RGB444 = 0,
-	OV7670_MODE_RGB555 = 1,
-	OV7670_MODE_RGB565 = 2,
-	OV7670_MODE_YUV	= 3,
-} ov7670_mode_t;
-
-void ov7670_init();
-uint8_t ov7670_reset(ov7670_mode_t mode);
-
-uint8_t transfer_regvals(struct regval_list *list);
-uint8_t init_yuv_qvga();
-void init_camera_reset();
-uint8_t init_default_values();
+	OV7670_FMT_KEY_YUV422 = 0,
+	OV7670_FMT_KEY_RGB444,
+	OV7670_FMT_KEY_RGB565,
+	OV7670_FMT_KEY_RAW,
+} ov7670_fmt_key_t;
 
 
-#endif // OV7670_H_
+typedef enum
+{
+	OV7670_WINDOW_SIZE_KEY_VGA = 0,
+	OV7670_WINDOW_SIZE_KEY_CIF,
+	OV7670_WINDOW_SIZE_KEY_QVGA,
+	OV7670_WINDOW_SIZE_KEY_QCIF,
+} ov7670_window_size_key_t;
+
+struct v4l2_fract {
+	uint32_t   numerator;
+	uint32_t   denominator;
+};
+
+struct ov7670_config {
+	//int min_width;			/* Filter out smaller sizes */
+	//int min_height;			/* Filter out smaller sizes */
+	int clock_speed;		/* External clock speed (MHz) */
+	//bool pll_bypass;		/* Choose whether to bypass the PLL */
+	bool pclk_hb_disable;	/* Disable toggling pixclk during horizontal blanking */
+};
+
+
+int ov7670_init(struct ov7670_config * config);
+int ov7670_reset(void);
+int ov7670_set_fmt(ov7670_fmt_key_t fmt, ov7670_window_size_key_t ws);
+void ov7670_get_framerate_legacy(struct v4l2_fract *tpf);
+int ov7670_set_framerate_legacy(struct v4l2_fract *tpf);
+
+#endif /* OV7670_OV7670_H_ */

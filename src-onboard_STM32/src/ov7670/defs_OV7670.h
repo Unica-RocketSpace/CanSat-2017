@@ -1,27 +1,12 @@
 /*
- * registers.h
+ * defs_ov7670.h
  *
- *  Created on: 15 июня 2017 г.
- *      Author: developer
+ *  Created on: 20 июня 2017 г.
+ *      Author: Vasiliy
  */
 
-#ifndef DEFS_OV7670_H_
-#define DEFS_OV7670_H_
-
-struct regval_list
-{
-	uint8_t		reg_num;
-	uint8_t		value;
-};
-
-extern const struct regval_list qvga_ov7670[];
-extern const struct regval_list ov7670_qqvga[];
-extern const struct regval_list ov7670_fmt_rgb444[];
-extern const struct regval_list ov7670_fmt_rgb565[];
-extern const struct regval_list ov7670_fmt_rgb555[];
-extern const struct regval_list ov7670_fmt_yuv422[];
-extern const struct regval_list ov7670_default[];
-
+#ifndef OV7670_DEFS_OV7670_H_
+#define OV7670_DEFS_OV7670_H_
 
 
 #define VGA_WIDTH                   ( 640 )
@@ -243,6 +228,16 @@ extern const struct regval_list ov7670_default[];
 #define REG_MANV (0x68) // special effects register 2
 
 
+struct regval_list {
+	unsigned char reg_num;
+	unsigned char value;
+};
 
+extern const struct regval_list ov7670_default_regs[];
+extern const struct regval_list ov7670_fmt_rgb444[];
+extern const struct regval_list ov7670_fmt_raw[];
+extern const struct regval_list ov7670_fmt_yuv422[];
+extern const struct regval_list ov7670_fmt_rgb565[];
+extern const struct regval_list ov7670_qcif_regs[];
 
-#endif /* DEFS_OV7670_H_ */
+#endif /* OV7670_DEFS_OV7670_H_ */
