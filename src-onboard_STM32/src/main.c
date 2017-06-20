@@ -52,7 +52,13 @@ static const char filename[] = "video-";
 
 size_t href_cnt = 0;
 static QueueHandle_t _fullBufferQ;
+static StaticQueue_t _fullBufferQ_ob;
+static uint8_t _fullBufferQ_data[BUFFER_CNT * sizeof(uint8_t *)];
+
 static QueueHandle_t _emptyBufferQ;
+static StaticQueue_t _emptyBufferQ_ob;
+static uint8_t _emptyBufferQ_data[BUFFER_CNT * sizeof(uint8_t *)];
+
 static dump_state_t stream_file;
 static uint8_t _buffers[BUFFER_CNT][BUFFER_SIZE];
 
@@ -111,6 +117,9 @@ void blink_led()
 void cam_task(void* args);
 
 
+static StackType_t _cam_task_stack[120];
+static StaticTask_t _cam_taskb_ob;
+
 void sd_task(void * args)
 {
 	(void)args;
@@ -119,8 +128,13 @@ void sd_task(void * args)
 	//Пишем на SD флаг начала кадра
 	dump(&stream_file, &OV7670_FLAG, 8);
 
-	_emptyBufferQ = xQueueCreate(BUFFER_CNT, sizeof(uint8_t*));
-	_fullBufferQ = xQueueCreate(BUFFER_CNT, sizeof(uint8_t*));
+	//_emptyBufferQ = xQueueCreate(BUFFER_CNT, sizeof(uint8_t*));
+	//_fullBufferQ = xQueueCreate(BUFFER_CNT, sizeof(uint8_t*));
+	_emptyBufferQ = xQueueCreateStatic(BUFFER_CNT, sizeof(uint8_t*), _emptyBufferQ_data,
+			&_emptyBufferQ_ob);
+
+	_fullBufferQ = xQueueCreateStatic(BUFFER_CNT, sizeof(uint8_t*), _fullBufferQ_data,
+			&_fullBufferQ_ob);
 
 	for (size_t i = 0; i < BUFFER_CNT; i++)
 	{
@@ -128,7 +142,9 @@ void sd_task(void * args)
 		xQueueSendToBack(_emptyBufferQ, &buffPtr, portMAX_DELAY);
 	}
 
-	xTaskCreate(cam_task, "cam", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
+	//xTaskCreate(cam_task, "cam", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
+	xTaskCreateStatic(cam_task, "cam", sizeof(_cam_task_stack)/sizeof(_cam_task_stack[0]), NULL, 1,
+			_cam_task_stack, &_cam_taskb_ob);
 
 	while(1)
 	{
@@ -206,12 +222,18 @@ again:
 
 
 
+static StackType_t _sd_task_stack[120];
+static StaticTask_t _sd_task_ob;
+
+
 int main(int argc, char* argv[])
 {
 	tdcs_init();
 	blink_led_init();
 
-	xTaskCreate(sd_task, "sd", 3*configMINIMAL_STACK_SIZE, NULL, 2, NULL);
+	//xTaskCreate(sd_task, "sd", 3*configMINIMAL_STACK_SIZE, NULL, 2, NULL);
+	xTaskCreateStatic(sd_task, "sd", sizeof(_sd_task_stack)/sizeof(_sd_task_stack[0]),
+			NULL, 1, _sd_task_stack, &_sd_task_ob);
 
 
 	vTaskStartScheduler();
