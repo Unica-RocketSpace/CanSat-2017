@@ -41,7 +41,7 @@ static void ov7670_sccb_init()
 	//i2c.I2C_Ack = I2C_Ack_Enable;
 	i2c.I2C_Ack = I2C_Ack_Disable;
 	i2c.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
-	i2c.I2C_ClockSpeed = 10000;
+	i2c.I2C_ClockSpeed = 1000;
 	I2C_Init(I2C1, &i2c);
 	I2C_ITConfig(I2C1, I2C_IT_ERR, ENABLE);
 	I2C_Cmd(I2C1, ENABLE);

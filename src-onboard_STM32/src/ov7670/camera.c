@@ -5,6 +5,7 @@
 #include "tim_dma_control.h"
 #include "diag/Trace.h"
 
+
 static uint8_t _dummyBuffer[10];
 static volatile size_t _hrefCntLeft = 0;
 

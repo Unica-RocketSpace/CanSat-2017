@@ -1,7 +1,8 @@
-#include <stdio.h>
+/*#include <stdio.h>
 #include <stdlib.h>
 
 #include <FreeRTOS.h>
+
 #include <task.h>
 #include <queue.h>
 
@@ -14,6 +15,8 @@
 #include "ov7670/camera.h"
 #include "sd.h"
 #include "dump.h"
+#include "ov7670/sccb.h"
+#include "ov7670/defs_OV7670.h"
 
 
 #define BUFFER_SIZE			(1280*4)
@@ -101,6 +104,77 @@ void sd_task(void * args)
 	}
 }
 
+int ov7670_read_(uint8_t reg, uint8_t * data)
+{
+	uint32_t timeout = 0x7FFFFF;
+	while (I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY)) {
+		if ((timeout--) == 0) {
+			trace_printf("Busy Timeout\r\n");
+			return -pdFREERTOS_ERRNO_ECANCELED;
+		}
+	}
+
+	// Send start bit
+	I2C_GenerateSTART(I2C1, ENABLE);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT)) {
+		if ((timeout--) == 0) {
+			trace_printf("Start bit Timeout\r\n");
+			return -pdFREERTOS_ERRNO_ECANCELED;
+		}
+	}
+
+	// Send slave address (camera write address)
+	I2C_Send7bitAddress(I2C1, OV7670_SCCB_WRITE_ADDR, I2C_Direction_Transmitter);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)) {
+		if ((timeout--) == 0) {
+			trace_printf("Slave address timeout\r\n");
+			return -pdFREERTOS_ERRNO_ECANCELED;
+		}
+	}
+
+	// Send register address
+	I2C_SendData(I2C1, reg);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) {
+		if ((timeout--) == 0) {
+			trace_printf("Register timeout\r\n");
+			return -pdFREERTOS_ERRNO_ECANCELED;
+		}
+	}
+
+
+
+	// Send start again
+	I2C_GenerateSTART(I2C1, ENABLE);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT)) {
+		if ((timeout--) == 0) {
+			trace_printf("Start bit Timeout\r\n");
+			return -pdFREERTOS_ERRNO_ECANCELED;
+		}
+	}
+
+	// Send slave address (camera read address)
+	I2C_Send7bitAddress(I2C1, OV7670_SCCB_WRITE_ADDR, I2C_Direction_Receiver);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)) {
+		if ((timeout--) == 0) {
+			trace_printf("Slave address timeout\r\n");
+			return -pdFREERTOS_ERRNO_ECANCELED;
+		}
+	}
+
+	// Read reg value
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_RECEIVED)) {
+		if ((timeout--) == 0) {
+			trace_printf("Value timeout\r\n");
+			return -pdFREERTOS_ERRNO_ECANCELED;
+		}
+	}
+	*data = I2C_ReceiveData(I2C1);
+
+	// Send stop bit
+	I2C_GenerateSTOP(I2C1, ENABLE);
+	return 0;
+
+}
 
 void cam_task(void* args)
 {
@@ -138,15 +212,29 @@ again:
 	goto again;
 }
 
+void task()
+{
+	blink_led_init();
+	camera_init();
+	uint8_t pid;
+	while(1)
+	{
+		blink_led();
+		ov7670_read_(0x0a, &pid);
+		trace_printf("pid: %d", pid);
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	(void)argc, (void)argv;
-
-	camera_init();
-	//ov7670_sccb_init();
-
+	static StaticTask_t _task_ob;
+	static StackType_t _task_stack[50];
 
 
+	xTaskCreateStatic(task, "1", configMINIMAL_STACK_SIZE, NULL, 1, _task_stack, &_task_ob);
+
+	vTaskStartScheduler();
 
 
 	return 0;
@@ -170,3 +258,4 @@ int main_x(int argc, char* argv[])
 
 
 
+*/

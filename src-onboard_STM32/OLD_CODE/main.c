@@ -9,7 +9,6 @@
 #include <stdlib.h>
 #include "diag/Trace.h"
 
-#include "Timer.h"
 #include "BlinkLed.h"
 #include "stm32f10x_conf.h"
 #include "stm32f10x_usart.h"
@@ -20,10 +19,8 @@
 
 #include <sd.h>
 #include <dump.h>
-#include "OV7670.h"
+//#include "OV7670.h"
 #include "i2c.h"
-#include "tim_dma_control.h"
-#include "registers.h"
 
 // ----------------------------------------------------------------------------
 //
@@ -53,9 +50,20 @@
 // so please adjust the PLL settings in system/src/cmsis/system_stm32f10x.c
 //
 
+//Порт A
+#define VIDEO_DATA		GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7
+#define VIDEO_CLK		GPIO_Pin_8
+#define VIDEO_RRST		GPIO_Pin_9
+#define VIDEO_WRST		GPIO_Pin_10
+#define VIDEO_HREF		GPIO_Pin_11
+#define VIDEO_VSYNC	GPIO_Pin_12
 
-#define BUFFER_SIZE (1280 * 6)
-#define BUFFER_CNT	(50)		//640*300*2/BUFFER_SIZE
+//Порт B
+#define VIDEO_OE		GPIO_Pin_0
+#define VIDEO_WE		GPIO_Pin_1
+
+#define OV7670_WRITE_ADDR ( 0x42 )
+#define OV7670_READ_ADDR ( 0x43 )
 
 // ----- functions() --------------------------------------------------------
 
@@ -76,8 +84,9 @@ typedef enum
 #pragma GCC diagnostic ignored "-Wmissing-declarations"
 #pragma GCC diagnostic ignored "-Wreturn-type"
 
-volatile size_t buff_cnt = 0;
-volatile size_t href_cnt = 0;
+
+uint16_t string_point = 0;
+uint16_t frame_point = 0;
 
 void reset_FIFO()
 {
@@ -96,32 +105,8 @@ void reset_FIFO()
 	GPIOA->BSRR |= VIDEO_CLK;
 }
 
-void camera_init()
-{
-	GPIOB->BRR |=  VIDEO_WE;//запрещаем запись в FIFO и чтение из него
-	GPIOB->BSRR |= VIDEO_OE;
-
-	GPIOA->BRR |= VIDEO_RRST | VIDEO_WRST;			//переводим маркеры чтения и записи FIFO на начало
-	for (int i = 0; i < 100; i++)					//clock-аем
-	{
-		GPIOA->BSRR |= VIDEO_CLK;
-		GPIOA->BRR |= VIDEO_CLK;
-
-	}
-	GPIOA->BSRR |= VIDEO_RRST | VIDEO_WRST;
-}
-
-
 void exti_enable(FunctionalState state)
 {
-	EXTI_InitTypeDef exti;
-	EXTI_StructInit(&exti);
-	exti.EXTI_Line = EXTI_Line11;
-	exti.EXTI_LineCmd = ENABLE;
-	exti.EXTI_Mode = EXTI_Mode_Interrupt;
-	exti.EXTI_Trigger = EXTI_Trigger_Falling;
-	EXTI_Init(&exti);
-
 	NVIC_InitTypeDef NVIC_init;
 	NVIC_init.NVIC_IRQChannel = EXTI15_10_IRQn;
 	NVIC_init.NVIC_IRQChannelCmd = state;
@@ -130,6 +115,20 @@ void exti_enable(FunctionalState state)
 	NVIC_Init(&NVIC_init);
 }
 
+/*void camera_init()
+{
+	GPIOB->BRR |=  VIDEO_WE;//запрещаем запись в FIFO и чтение из него
+	GPIOB->BSRR |= VIDEO_OE;
+
+	GPIOA->BRR |= VIDEO_RRST | VIDEO_WRST;			//переводим маркеры чтения и записи FIFO на начало
+	for (int i = 0; i < 10; i++)					//clock-аем
+	{
+		GPIOA->BSRR |= VIDEO_CLK;
+		GPIOA->BRR |= VIDEO_CLK;
+
+	}
+	GPIOA->BSRR |= VIDEO_RRST | VIDEO_WRST;
+}*/
 
 void blink_led()
 {
@@ -142,93 +141,62 @@ void blink_led()
 int
 main(int argc, char* argv[])
 {
-	uint8_t buffer[BUFFER_SIZE] = {0x00};
+	//Включаем тактирование
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2, ENABLE);
 
 	blink_led_init();
-	tdcs_init();
 
-	ov7670_flag OV7670_FLAG = OV7670_SE_FRAME;
-	dump_state_t stream_file;
-	char filename[] = "video-";
-	dump_init(&stream_file, filename);
+	//Инициализация портов видеокамеры
+	GPIO_InitTypeDef OV7670_initialise;
+
+	OV7670_initialise.GPIO_Pin = 	VIDEO_DATA | VIDEO_HREF | VIDEO_VSYNC;
+	OV7670_initialise.GPIO_Speed = GPIO_Speed_50MHz;
+	OV7670_initialise.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_Init(GPIOA, &OV7670_initialise);
+
+	OV7670_initialise.GPIO_Pin = VIDEO_CLK | VIDEO_RRST | VIDEO_WRST;
+	OV7670_initialise.GPIO_Speed = GPIO_Speed_50MHz;
+	OV7670_initialise.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOA, &OV7670_initialise);
+
+	OV7670_initialise.GPIO_Pin = VIDEO_OE | VIDEO_WE | (1 << 6) | (1 << 7);
+	OV7670_initialise.GPIO_Speed = GPIO_Speed_50MHz;
+	OV7670_initialise.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOB, &OV7670_initialise);
+
+
+
+ 	i2c_init();
+	uint8_t pid = 0;
+	uint8_t reset_reg_data = 0x80;
 
 
 	while(1)
 	{
-		//Пишем на SD флаг начала кадра
-		dump(&stream_file, &OV7670_FLAG, 8);
-		camera_init();
-		buff_cnt = 0;
-		href_cnt = 0;
-
-		// ждем VSYNC
-		while((GPIOA->IDR & VIDEO_VSYNC) != 0)
-		{}
-		while((GPIOA->IDR & VIDEO_VSYNC) == 0)
-		{}
-
-		// VSYNC пришел, нужно срочно включать запись в фифо и чтение из него
-		//exti_enable(ENABLE);
-		GPIOB->BSRR |= VIDEO_WE;
-		//GPIOB->BRR |= VIDEO_OE;
-		//GPIOB->BSRR |= VIDEO_OE;
-
-
-		// теперь считаем HREF-ы
-		href_cnt = 0;
-		while(1)
-		{
-			// пока HREF в нуле ничего не делаем
-			while((GPIOA->IDR & VIDEO_HREF) == 0)
-			{}
-
-			href_cnt++;
-
-			// ждем пока опустится обратно
-			while((GPIOA->IDR & VIDEO_HREF) != 0)
-			{}
-
-			if (href_cnt >= 300)
-				break;
-		}
-
-		// и быстро запрещаем запись в фифо
-		GPIOB->BRR |= VIDEO_WE;
-
-		camera_init();
-		// разрешаем чтение из fifo
-		GPIOB->BRR |= VIDEO_OE;
-
-
-		while(1)
-		{
-			tdcs_pull_data(buffer, sizeof(buffer));
-			dump(&stream_file, buffer, sizeof(buffer));
-			buff_cnt++;
-
-			if (buff_cnt >= BUFFER_CNT)
-				break;
-		}
-
-
-
-		blink_led();
+		I2C_ClearFlag(I2C1, /*I2C_FLAG_AF | I2C_FLAG_ARLO*/ I2C_FLAG_TIMEOUT);
+		i2c_write(OV7670_WRITE_ADDR, 0x12, &reset_reg_data, 1);
+		uint16_t delay = 10000;
+		while(delay--);
 	}
 
-	return 0;
-}
+	for(int i = 0; i < 10000; i++) {}
+	reset_reg_data = 0x00;
+	i2c_write(OV7670_WRITE_ADDR, 0x12, &reset_reg_data, 1);
 
-
-void EXTI15_10_IRQHandler()
-{
-
-	EXTI_ClearITPendingBit(EXTI_Line11);
-	href_cnt++;
-	if (href_cnt >= 300)
+	while(1)
 	{
-		GPIOB->BRR |= VIDEO_WE;
-		exti_enable(DISABLE);
+		blink_led();
+		i2c_read(OV7670_READ_ADDR, 0x0a, &pid, 1);
+		if (pid == 0)
+			trace_printf("ERROR");
+		else
+			trace_printf("pid: %d", pid);
 	}
+
 }
 
 #pragma GCC diagnostic pop
