@@ -38,7 +38,7 @@ void transmition_init()
 
 //FIXME: УБРАТЬ!!!!!!!
 	// настраиваем printf на уарт0
-	stdout = rscs_make_uart_stream(uart0);
+	//stdout = rscs_make_uart_stream(uart0);
 
 	package PACKAGE_ = { 0 };
 	PACKAGE = PACKAGE_;

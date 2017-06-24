@@ -185,7 +185,6 @@ int main()
 		//printf_package(p_number);
 		//printf_state();
 
-
 		//Пересчитываем матрицу поворота по данным с магнитометра
 		//FIXME:пока нигде не управляется STATE.state
 		if (STATE.state & (1 << 1))
@@ -193,10 +192,10 @@ int main()
 			//recalc_ISC();
 		}
 		send_package();
-		_delay_ms(500);
+		//_delay_ms(500);
 
 		//Отправляем пакет в формате "HEX"
-		send_package();
+		//send_package();
 		//_delay_ms(500);
 		//if (p_number % 50 == 0) printf_state();
 	}

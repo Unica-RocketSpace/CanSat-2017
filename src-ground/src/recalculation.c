@@ -13,21 +13,10 @@
 #include "package_struct.h"
 #include "recalculation.h"
 
-static const rscs_bmp280_calibration_values_t calvals =
-{
-		.T1 = 0,
-		.T2 = 0,
-		.T3 = 0,
-		.P1 = 0,
-		.P2 = 0,
-		.P3 = 0,
-		.P4 = 0,
-		.P5 = 0,
-		.P6 = 0,
-		.P7 = 0,
-		.P8 = 0,
-		.P9 = 0
-};
+static const char calvals_value[] = {0x61,0x6c, 0xde, 0x65, 0x18, 0xfc, 0xb7, 0x97, 0xfb, 0xd5, 0xd0, 0x0b,
+		0x17, 0x0e, 0x50, 0x01, 0xf9, 0xff, 0x8c, 0x3c, 0xf8, 0xc6, 0x70, 0x17};
+
+static const rscs_bmp280_calibration_values_t * calvals = (const rscs_bmp280_calibration_values_t * )calvals_value;
 
 void recalc_accel(int16_t * raw_accel_XYZ, float * accel_XYZ)
 {
@@ -91,8 +80,8 @@ float recalc_bmp280Temp(int32_t rawtemp)
 	int32_t t_fine;
 
 	int32_t var1, var2;
-	var1 = ((((rawtemp >> 3) - (((int32_t)calvals.T1) << 1))) * ((int32_t)calvals.T2)) >> 11;
-	var2 = (((((rawtemp >> 4) - ((int32_t)calvals.T1)) * ((rawtemp>>4) - ((int32_t)calvals.T1))) >> 12) * ((int32_t)calvals.T3)) >> 14;
+	var1 = ((((rawtemp >> 3) - (((int32_t)calvals->T1) << 1))) * ((int32_t)calvals->T2)) >> 11;
+	var2 = (((((rawtemp >> 4) - ((int32_t)calvals->T1)) * ((rawtemp>>4) - ((int32_t)calvals->T1))) >> 12) * ((int32_t)calvals->T3)) >> 14;
 	t_fine = var1 + var2;
 	temp_p = (t_fine * 5 + 128) >> 8;
 
@@ -105,18 +94,18 @@ float recalc_bmp280Pressure(int32_t rawpress, int32_t rawtemp)
 	int32_t t_fine;
 
 		int32_t var1, var2;
-		var1 = ((((rawtemp >> 3) - (((int32_t)calvals.T1) << 1))) * ((int32_t)calvals.T2)) >> 11;
-		var2 = (((((rawtemp >> 4) - ((int32_t)calvals.T1)) * ((rawtemp>>4) - ((int32_t)calvals.T1))) >> 12) * ((int32_t)calvals.T3)) >> 14;
+		var1 = ((((rawtemp >> 3) - (((int32_t)calvals->T1) << 1))) * ((int32_t)calvals->T2)) >> 11;
+		var2 = (((((rawtemp >> 4) - ((int32_t)calvals->T1)) * ((rawtemp>>4) - ((int32_t)calvals->T1))) >> 12) * ((int32_t)calvals->T3)) >> 14;
 		t_fine = var1 + var2;
 
 		int32_t var1_p, var2_p;
 		uint32_t p;
 		var1_p = (((int32_t)t_fine)>>1) - (int32_t)64000;
-		var2_p = (((var1_p>>2) * (var1_p>>2)) >> 11 ) * ((int32_t)calvals.P6);
-		var2_p = var2_p + ((var1_p*((int32_t)calvals.P5))<<1);
-		var2_p = (var2_p>>2)+(((int32_t)calvals.P4)<<16);
-		var1_p = (((calvals.P3 * (((var1_p>>2) * (var1_p>>2)) >> 13 )) >> 3) + ((((int32_t)calvals.P2) * var1_p)>>1))>>18;
-		var1_p =((((32768+var1_p))*((int32_t)calvals.P1))>>15);
+		var2_p = (((var1_p>>2) * (var1_p>>2)) >> 11 ) * ((int32_t)calvals->P6);
+		var2_p = var2_p + ((var1_p*((int32_t)calvals->P5))<<1);
+		var2_p = (var2_p>>2)+(((int32_t)calvals->P4)<<16);
+		var1_p = (((calvals->P3 * (((var1_p>>2) * (var1_p>>2)) >> 13 )) >> 3) + ((((int32_t)calvals->P2) * var1_p)>>1))>>18;
+		var1_p =((((32768+var1_p))*((int32_t)calvals->P1))>>15);
 		if (var1_p == 0)
 		{
 		return -8; // чтобы не делить на ноль
@@ -130,9 +119,9 @@ float recalc_bmp280Pressure(int32_t rawpress, int32_t rawtemp)
 		{
 		p = (p / (uint32_t)var1_p) * 2;
 		}
-		var1_p = (((int32_t)calvals.P9) * ((int32_t)(((p>>3) * (p>>3))>>13)))>>12;
-		var2_p = (((int32_t)(p>>2)) * ((int32_t)calvals.P8))>>13;
-		p = (uint32_t)((int32_t)p + ((var1_p + var2_p + calvals.P7) >> 4));
+		var1_p = (((int32_t)calvals->P9) * ((int32_t)(((p>>3) * (p>>3))>>13)))>>12;
+		var2_p = (((int32_t)(p>>2)) * ((int32_t)calvals->P8))>>13;
+		p = (uint32_t)((int32_t)p + ((var1_p + var2_p + calvals->P7) >> 4));
 		press_p = p;
 
 
