@@ -38,7 +38,6 @@ void hardwareInit(void)
 {
 	/*инициализация радиопередатчика*/
 	transmition_init();
-	//sei();
 
 	/*инициализация i2c*/
 	rscs_i2c_init();
@@ -73,6 +72,7 @@ void hardwareInit(void)
 	rscs_adxl345_set_rate(adxl345, RSCS_ADXL345_RATE_100HZ);
 
 	/*инициализация таймеров*/
+	sei();
 	rscs_time_init();	//таймер времени
 	timer1PWMInit();	//таймер для ШИМ
 
@@ -83,7 +83,7 @@ void kinematicInit()
 {
 	state STATE_;
 	STATE_.aRelatedXYZ[0] = 0;	STATE_.aRelatedXYZ[1] = 0;	STATE_.aRelatedXYZ[2] = 0;
-	STATE_.aALT_XYZ[0] = 0;		STATE_.aALT_XYZ[1] = 0;		STATE_.aALT_XYZ[2] = 0;
+	STATE_.aALT_XYZ[0]    = 0;	STATE_.aALT_XYZ[1]    = 0;	STATE_.aALT_XYZ[2]    = 0;
 	STATE_.gRelatedXYZ[0] = 0;	STATE_.gRelatedXYZ[1] = 0;	STATE_.gRelatedXYZ[2] = 0;
 	STATE_.cRelatedXYZ[0] = 0;	STATE_.cRelatedXYZ[1] = 0;	STATE_.cRelatedXYZ[2] = 0;
 
@@ -136,11 +136,9 @@ void kinematicInit()
 void RSC_to_ISC_recalc(float * RSC_vect, float * ISC_vect)
 {
 	//iauRxp(STATE.f_XYZ, RSC_vect, ISC_vect);
-
 	ISC_vect[0] = RSC_vect[0] * STATE.f_XYZ[0][0] + RSC_vect[1] * STATE.f_XYZ[0][1] + RSC_vect[2] * STATE.f_XYZ[0][2];
 	ISC_vect[1] = RSC_vect[0] * STATE.f_XYZ[1][0] + RSC_vect[1] * STATE.f_XYZ[1][1] + RSC_vect[2] * STATE.f_XYZ[1][2];
 	ISC_vect[2] = RSC_vect[0] * STATE.f_XYZ[2][0] + RSC_vect[1] * STATE.f_XYZ[2][1] + RSC_vect[2] * STATE.f_XYZ[2][2];
-
 }
 
 void set_ISC_offset()
@@ -317,6 +315,7 @@ void pull_recon_data()
 	STATE.Time = rscs_time_get();
 }
 
+
 void set_cos_to_1(float * cosalpha)
 {
 	if (*cosalpha > 1.0)	{*cosalpha = 1.0;}
@@ -327,7 +326,7 @@ void set_cos_to_1(float * cosalpha)
 void construct_trajectory()
 {
 
-	float dt = (STATE.Time - STATE.previousTime) / 1000;
+	float dt = (float)(STATE.Time - STATE.previousTime) / 1000;
 
 	//определение угловых скоростей (в ИСК)
 	RSC_to_ISC_recalc(STATE.gRelatedXYZ, STATE.w_XYZ);
@@ -354,7 +353,6 @@ void construct_trajectory()
 	STATE.f_XYZ[0][0] = solution_vector[0];
 	STATE.f_XYZ[1][0] = solution_vector[1];
 	STATE.f_XYZ[2][0] = solution_vector[2];
-	printf("f_XYZ[0] = %f\n", sqrt(pow(STATE.f_XYZ[0][0],2) + pow(STATE.f_XYZ[1][0],2) + pow(STATE.f_XYZ[2][0],2)));
 
 
 	//находим второй столбец матрицы поворота
@@ -376,14 +374,12 @@ void construct_trajectory()
 	STATE.f_XYZ[0][1] = solution_vector[0];
 	STATE.f_XYZ[1][1] = solution_vector[1];
 	STATE.f_XYZ[2][1] = solution_vector[2];
-	printf("f_XYZ[1] = %f\n", sqrt(pow(STATE.f_XYZ[0][1],2) + pow(STATE.f_XYZ[1][1],2) + pow(STATE.f_XYZ[2][1],2)));
 
 
 	//находим третий столбец матрицы поворота из условия ортогональности векторов
 	STATE.f_XYZ[2][2] =  STATE.f_XYZ[0][0] * STATE.f_XYZ[1][1] - STATE.f_XYZ[1][0] * STATE.f_XYZ[0][1];
 	STATE.f_XYZ[0][2] = (STATE.f_XYZ[0][0] * STATE.f_XYZ[2][0] + STATE.f_XYZ[0][1] * STATE.f_XYZ[2][1]) / STATE.f_XYZ[2][2];
 	STATE.f_XYZ[1][2] = (STATE.f_XYZ[1][0] * STATE.f_XYZ[2][0] + STATE.f_XYZ[1][1] * STATE.f_XYZ[2][1]) / STATE.f_XYZ[2][2];
-	printf("f_XYZ[2] = %f\n", sqrt(pow(STATE.f_XYZ[0][2],2) + pow(STATE.f_XYZ[1][2],2) + pow(STATE.f_XYZ[2][2],2)));
 
 	set_cos_to_1(&STATE.f_XYZ[0][0]);
 	set_cos_to_1(&STATE.f_XYZ[0][1]);
@@ -397,6 +393,7 @@ void construct_trajectory()
 
 	//определение ускорений
 	RSC_to_ISC_recalc(STATE.aRelatedXYZ, STATE.a_XYZ);
+	STATE.a_XYZ[2] = STATE.a_XYZ[2] - G_VECT;
 
 	//определение скоростей
 	STATE.v_XYZ[0] = STATE.v_XYZ[0] + (STATE.a_XYZ_prev[0] + STATE.a_XYZ[0]) * dt / 2;
@@ -507,7 +504,6 @@ void getRotationMatrix (float * RotationMatrix)
 	*(first_RotationMatrix + 6) = STATE.f_XYZ[2][0];
 	*(first_RotationMatrix + 7) = STATE.f_XYZ[2][1];
 	*(first_RotationMatrix + 8) = STATE.f_XYZ[2][2];
-
 }
 
 

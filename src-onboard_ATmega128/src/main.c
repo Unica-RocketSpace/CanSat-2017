@@ -27,12 +27,17 @@
 #include "MPU9255.h"
 
 
-void blink_led()
+void blink_led_init()
 {
 	DDRG |= (1 << 3);
+}
+
+void blink_led()
+{
 	PORTG ^= (1 << 3);
 	_delay_ms(100);
 }
+
 
 void send_calibration_values()
 {
@@ -45,55 +50,155 @@ void send_calibration_values()
 	}
 }
 
+
+void servo_test()
+{
+	for(int i = 0; i < 360; i++)
+	{
+		if (i < 180) setServoAngle(i - 90);
+		else if (i == 180)
+		{
+			setServoAngle(i - 90);
+			_delay_ms(500);
+		}
+		else setServoAngle(270 - i);
+		_delay_ms(3);
+	}
+	_delay_ms(500);
+}
+
+
+void motor_test()
+{
+	for(int i = 0; i < 800; i++)
+	{
+		 if (i < 400)
+		{
+			setWheelSpeed(i - 200);
+			_delay_ms(5);
+		}
+		else if (i == 400)
+		{
+			setWheelSpeed(i - 200);
+			_delay_ms(1000);
+		}
+		else setWheelSpeed(600 - i);
+		_delay_ms(5);
+	}
+	_delay_ms(500);
+}
+
+void motor_test_stop()
+{
+	setWheelSpeed(200);
+	_delay_ms(2000);
+	setWheelSpeed(0);
+	_delay_ms(4000);
+}
+
+
+void printf_package(uint16_t package_number)
+{
+	printf("TIME: %f  [s]\n", (float)STATE.Time / 1000);
+	printf("=============PACKAGE NUMBER [ %d ]====\n", package_number);
+	printf("-----MAIN MISSION-----\n");
+	printf("Accelerations (ADXL345): %f, %f, %f  [m/s^2]\n", G_VECT*STATE.aALT_XYZ[0]/1.08, G_VECT*STATE.aALT_XYZ[1]/1.08, G_VECT*STATE.aALT_XYZ[2]/1.17);
+	printf("Pressure      (BMP280) : %f  [Pa]\n", STATE.pressure);
+	printf("Temperature   (BMP280) : %f  [oC]\n", STATE.temp_bmp280);
+	printf("Temperature   (DS18B20): %f  [oC]\n", STATE.temp_ds18b20);
+
+	printf("-----ADDITIONAL MISSION-----\n");
+	printf("Accelerations    (MPU9255): %f, %f, %f  [m/s^2]\n", STATE.aRelatedXYZ[0], STATE.aRelatedXYZ[1], STATE.aRelatedXYZ[2]);
+	printf("Angle velocities (MPU9255): %f, %f, %f  [1/s]\n", STATE.gRelatedXYZ[0], STATE.gRelatedXYZ[1], STATE.gRelatedXYZ[2]);
+	printf("Magnetic vector  (MPU9255): %f, %f, %f  [-]\n", STATE.cRelatedXYZ[0], STATE.cRelatedXYZ[1], STATE.cRelatedXYZ[2]);
+	printf("=============END OF PACKAGE=============\n\n");
+}
+
+void printf_rotation_matrix()
+{
+	printf("(%f), (%f), (%f)\n", STATE.f_XYZ[0][0],
+								 STATE.f_XYZ[0][1],
+								 STATE.f_XYZ[0][2]);
+	printf("(%f), (%f), (%f)\n", STATE.f_XYZ[1][0],
+								 STATE.f_XYZ[1][1],
+								 STATE.f_XYZ[1][2]);
+	printf("(%f), (%f), (%f)\n", STATE.f_XYZ[2][0],
+								 STATE.f_XYZ[2][1],
+								 STATE.f_XYZ[2][2]);
+	printf("\n");
+}
+
+void printf_state()
+{
+	printf("time = %ld s  ==================\n", STATE.Time);
+	printf("Accelerometer\n");
+	printf("a_RSC: %f, %f, %f\n", STATE.aRelatedXYZ[0], STATE.aRelatedXYZ[1], STATE.aRelatedXYZ[2]);
+	printf("Gyroscope\n");
+	printf("w_RSC: %f, %f, %f\n", STATE.gRelatedXYZ[0], STATE.gRelatedXYZ[1], STATE.gRelatedXYZ[2]);
+	printf("Accelerations\n");
+	printf("a_ISC: %f, %f, %f\n", STATE.a_XYZ[0], STATE.a_XYZ[1], STATE.a_XYZ[2]);
+	printf("Velocities\n");
+	printf("v_ISC: %f, %f, %f\n", STATE.v_XYZ[0], STATE.v_XYZ[1], STATE.v_XYZ[2]);
+	printf("Translations\n");
+	printf("s_ISC: %f, %f, %f\n", STATE.s_XYZ[0], STATE.s_XYZ[1], STATE.s_XYZ[2]);
+	printf("Angle velocities\n");
+	printf("w_ISC: %f, %f, %f\n", STATE.w_XYZ[0], STATE.w_XYZ[1], STATE.w_XYZ[2]);
+	printf("Rotation Matrix\n");
+	printf_rotation_matrix();
+}
+
 int main()
 {
-	_delay_ms(1000);
-
+	_delay_ms(8000);
+	blink_led_init();
 	hardwareInit();
-
-	send_calibration_values();
-
-	//set_zero_pressure();	//устанавливаем нулевое давление
-
+	kinematicInit();
+	dynamicInit();
+	set_zero_pressure();	//устанавливаем нулевое давление
 	//set_ISC_offset();
+
 	//FIXME: Внутри функции set_ISC_offset мигалка работает до самого конца,
 	//а сразу после выхода из функции не работает
 	//while (1) {DDRG |= (1 << 3);PORTG ^= (1 << 3);_delay_ms(100);}
 	//set_magn_dir();
 
-	int p_number = 0;
+
+	//ТЕСТ СЕРВЫ И ДВИГАТЕЛЯ
+	/*while(1)
+	{
+		motor_test();
+		//servo_test();
+		//blink_led();
+	}*/
+
+
+	//int p_number = 0;
 
 	while(1)
 	{
 		blink_led();
-
-
 		pull_recon_data();
 		construct_trajectory();
 
-		p_number++;
-
-		printf("TIME: %f  [s]\n", (float)STATE.Time / 1000);
-		printf("=============PACKAGE NUMBER [ %d ]====\n", p_number);
-		printf("-----MAIN MISSION-----\n");
-		printf("Accelerations (ADXL345): %f, %f, %f  [m/s^2]\n", G_VECT*STATE.aALT_XYZ[0]/1.08, G_VECT*STATE.aALT_XYZ[1]/1.08, G_VECT*STATE.aALT_XYZ[2]/1.17);
-		printf("Pressure      (BMP280) : %f  [Pa]\n", STATE.pressure);
-		printf("Temperature   (BMP280) : %f  [oC]\n", STATE.temp_bmp280);
-		printf("Temperature   (DS18B20): %f  [oC]\n", STATE.temp_ds18b20);
-
-		printf("-----ADDITIONAL MISSION-----\n");
-		printf("Accelerations    (MPU9255): %f, %f, %f  [m/s^2]\n", STATE.aRelatedXYZ[0], STATE.aRelatedXYZ[1], STATE.aRelatedXYZ[2]);
-		printf("Angle velocities (MPU9255): %f, %f, %f  [1/s]\n", STATE.gRelatedXYZ[0], STATE.gRelatedXYZ[1], STATE.gRelatedXYZ[2]);
-		printf("Magnetic vector  (MPU9255): %f, %f, %f  [-]\n", STATE.cRelatedXYZ[0], STATE.cRelatedXYZ[1], STATE.cRelatedXYZ[2]);
-		printf("=============END OF PACKAGE=============\n\n");
+		//Отправляем пакет в формате "PRINT"
+		//p_number++;
+		//printf_package(p_number);
+		//printf_state();
 
 
+		//Пересчитываем матрицу поворота по данным с магнитометра
+		//FIXME:пока нигде не управляется STATE.state
 		if (STATE.state & (1 << 1))
 		{
-			recalc_ISC();
+			//recalc_ISC();
 		}
 		send_package();
 		_delay_ms(500);
+
+		//Отправляем пакет в формате "HEX"
+		send_package();
+		//_delay_ms(500);
+		//if (p_number % 50 == 0) printf_state();
 	}
 
 	return 0;

@@ -24,10 +24,10 @@
 #define MIN_SERVO_ANGLE_REG	675
 #define MAX_SERVO_ANGLE_REG	2475
 
-#define DRV_PORT PORTC
-#define DRV_DDR DDRC
-#define WH1_C 0
-#define WH1_D 1
+#define DRV_PORT 	PORTC
+#define DRV_DDR 	DDRC
+#define WH1_C 		4
+#define WH1_D 		5
 
 //СТРУКТУРА КООРДИНАТ ОТСЛЕЖИВАЕМОЙ ЦЕЛИ
 typedef struct
