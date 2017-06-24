@@ -11,38 +11,82 @@
 #include "package_struct.h"
 #include "recalculation.h"
 
-void content_PrintRecalc(package * pack, package_content content)
+
+void content_FPrint(FILE * file_, package * pack, global_data * data, uint16_t flag)
 {
-	float accel_XYZ[3] = {0};	float gyro_XYZ[3] = {0};	float compass_XYZ[3] = {0};
-	float time_;
-
-	switch (content){
-		case number:		printf("============================\n");
-							printf("ПАКЕТ %d \n\n", pack->number);			break;
-		case pressure:		printf("ДАВЛЕНИЕ: %d Па\n", pack->pressure);	break;
-		case temperature:	printf("ТЕМПЕРАТУРА: %d C \n", pack->temp);	break;
-
-		case accelerometer_data:	recalc_accel((int16_t*)(pack->aXYZ), accel_XYZ);
-									printf("Ускорение по оси X: %f м/с^2\n", accel_XYZ[0]);
-									printf("Ускорение по оси Y: %f м/с^2\n", accel_XYZ[1]);
-									printf("Ускорение по оси Z: %f м/с^2\n", accel_XYZ[2]);
-									printf("\n");			break;
-
-		case gyroscope_data:		recalc_gyro((int16_t*)(pack->gXYZ), gyro_XYZ);
-									printf("Угловая скорость по оси X: %f рад/с\n", gyro_XYZ[0]);
-									printf("Угловая скорость по оси Y: %f рад/с\n", gyro_XYZ[1]);
-									printf("Угловая скорость по оси Z: %f рад/с\n", gyro_XYZ[2]);
-									printf("\n");			break;
-
-		case compass_data:			recalc_compass((int16_t*)(pack->cXYZ), compass_XYZ);
-									printf("cos угла (B,OX): %f\n", compass_XYZ[0]);
-									printf("cos угла (B,OY): %f\n", compass_XYZ[1]);
-									printf("cos угла (B,OZ): %f\n", compass_XYZ[2]);
-									printf("\n");			break;
-
-		case state:			printf("Состояние: %d\n", pack->state);			break;
-		case time:			time_ = pack->time / 1000;
-							printf("ВРЕМЯ ПЕРЕДАЧИ: %f c\n", time_);			break;
+	if (flag & NUMBER)
+	{
+		if (flag & CSV)
+			fprintf(file_, "%d,", pack->number);
+		else
+		{
+			fprintf(file_, "============================\n");
+			fprintf(file_, "ПАКЕТ %d \n\n", pack->number);
+		}
+	}
+	if (flag & P_BMP280)
+	{
+		if (flag & CSV)
+			fprintf(file_, "%f,", data->pressure);
+		else
+			fprintf(file_, "ДАВЛЕНИЕ: %f Па\n", data->pressure);
+	}
+	if (flag & T_BMP280)
+	{
+		if (flag & CSV)
+			fprintf(file_, "%f,", data->temp_ds18b20);
+		else
+			fprintf(file_, "ТЕМПЕРАТУРА: %f C \n", data->temp_ds18b20);
+	}
+	if (flag & T_DS18B20)
+	{
+		if (flag & CSV)
+			fprintf(file_, "%f,", data->temp_bmp280);
+		else
+			fprintf(file_, "ТЕМПЕРАТУРА: %f C \n", data->temp_bmp280);
+	}
+	if (flag & ACCEL)
+	{
+		if (flag & CSV)
+			fprintf(file_, "%f,%f,%f,", data->accel_XYZ[0], data->accel_XYZ[1], data->accel_XYZ[2]);
+		else
+			fprintf(file_, "Ускорения (XYZ): %f м/с^2\t%f м/с^2\t%f м/с^2\n\n", data->accel_XYZ[0], data->accel_XYZ[1], data->accel_XYZ[2]);
+	}
+	if (flag & GYRO)
+	{
+		if (flag & CSV)
+			fprintf(file_, "%f,%f,%f,",  data->gyro_XYZ[0], data->gyro_XYZ[1], data->gyro_XYZ[2]);
+		else
+			fprintf(file_, "Угловые скорости (XYZ): %f рад/с\t%f рад/с\t%f рад/с\n\n",  data->gyro_XYZ[0], data->gyro_XYZ[1], data->gyro_XYZ[2]);
+	}
+	if (flag & COMPASS)
+	{
+		if (flag & CSV)
+			fprintf(file_, "%f,%f,%f,",  data->compass_XYZ[0], data->compass_XYZ[1], data->compass_XYZ[2]);
+		else
+			fprintf(file_, "Cos (B,OXYZ): %f\t%f\t%f\n\n",  data->compass_XYZ[0], data->compass_XYZ[1], data->compass_XYZ[2]);
+	}
+	if (flag & STATE)
+	{
+		if (flag & CSV)
+			fprintf(file_, "%d,", pack->state);
+		else
+			fprintf(file_, "Состояние: %d\n", pack->state);
+	}
+	if (flag & ACCEL)
+	{
+		if (flag & CSV)
+			fprintf(file_, "%f\n", data->time);
+		else
+		{
+			fprintf(file_, "ВРЕМЯ ПЕРЕДАЧИ: %f c\n", data->time);
+			fprintf(file_, "============================\n");
+		}
 
 	}
 }
+
+
+
+
+

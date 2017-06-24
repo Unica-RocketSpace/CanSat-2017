@@ -13,6 +13,13 @@
 #define GYRO_RANGE 2
 #define GYRO_SCALE_FACTOR 4
 
+typedef struct {
+	uint16_t T1;
+	int16_t T2, T3;
+	uint16_t P1;
+	int16_t P2, P3, P4, P5, P6, P7, P8, P9;
+} rscs_bmp280_calibration_values_t;
+
 
 /*функция пересчета ускорений (в м/с^2)*/
 void recalc_accel(int16_t * raw_accel_XYZ, float * accel_XYZ);
@@ -23,6 +30,9 @@ void recalc_gyro(int16_t * raw_gyro_XYZ, float * gyro_XYZ);
 /*функция пересчета показаний компаса, выдает направляющие косинусы вектора B с осями ИСК*/
 void recalc_compass(int16_t * raw_compass_XYZ, float * compass_XYZ);
 
+float recalc_ds18b20Temp(uint16_t raw_temp);
+float recalc_bmp280Temp(int32_t rawtemp);
+float recalc_bmp280Pressure(int32_t rawpress, int32_t rawtemp);
 
 
 #endif /* RECALCULATION_H_ */

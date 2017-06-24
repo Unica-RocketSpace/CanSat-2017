@@ -23,7 +23,8 @@ typedef struct
 
 	uint16_t pressure;	//pressure data
 
-	uint16_t temp;		//temperature data 1
+	uint16_t temp_ds18b20;
+	uint16_t temp_bmp280;
 
 	uint16_t aXYZ[3];	//accelerometer raw data
 	uint16_t gXYZ[3];	//gyro raw data
