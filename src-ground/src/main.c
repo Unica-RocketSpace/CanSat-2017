@@ -50,10 +50,8 @@ void make_fake_data(const char * filepath)
 		package packet;
 		packet.marker = 0xFF;
 		packet.number = i;
-		packet.pressure1 = 0x00;
-		packet.pressure2 = 0x00;
-		packet.temp1 = 0x00;
-		packet.temp2 = 0x00;
+		packet.pressure = 0x00;
+		packet.temp = 0x00;
 		packet.aXYZ[0] = 0x0000;
 		packet.aXYZ[1] = 0x0000;
 		packet.aXYZ[2] = 0x0000;
@@ -88,7 +86,7 @@ void make_fake_data(const char * filepath)
 
 int main()
 {
-	const char fake_package_path[] = "/home/developer/git/CanSat-2017/src-ground/RAW.bin";
+	const char fake_package_path[] = "/home/developer/git/CanSat-2017/src-ground/RAW2.log";
 	make_fake_data(fake_package_path);
 
 	FILE * f_raw = fopen(fake_package_path, "rb");		//файл с сырыми значениями
@@ -141,7 +139,10 @@ int main()
 				printf("\n");
 						//запись в файл
 				fprintf(f_ready, "Показания акселерометра (XYZ):\n");
-				fwrite(accel_XYZ, 3, 1, f_ready);
+				fprintf(f_ready, "Ускорение по оси X: %f м/с^2\n", accel_XYZ[0]);
+				fprintf(f_ready, "Ускорение по оси Y: %f м/с^2\n", accel_XYZ[1]);
+				fprintf(f_ready, "Ускорение по оси Z: %f м/с^2\n", accel_XYZ[2]);
+				//fwrite(accel_XYZ, 3, 1, f_ready);
 				fprintf(f_ready, "\n");
 				/*_____________()_______________*/
 
@@ -155,7 +156,7 @@ int main()
 				printf("\n");
 						//запись в файл
 				fprintf(f_ready, "Показания гироскопа (XYZ):\n");
-				fwrite(gyro_XYZ, 3, 1, f_ready);
+				fwrite(gyro_XYZ, 1, 3, f_ready);
 				fprintf(f_ready, "\n");
 				/*_____________()_______________*/
 
