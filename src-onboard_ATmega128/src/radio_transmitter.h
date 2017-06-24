@@ -19,11 +19,10 @@ typedef struct
 
 	uint16_t number;	//the number of packet
 
-	uint16_t pressure1;	//pressure data 1
-	uint16_t pressure2;	//pressure data 2
+	uint16_t pressure;
 
-	uint16_t temp1;		//temperature data 1
-	uint16_t temp2;		//temperature data 2
+	uint16_t temp_ds18b20;
+	uint16_t temp_bmp280;
 
 	uint16_t aXYZ[3];	//accelerometer raw data
 	uint16_t gXYZ[3];	//gyro raw data

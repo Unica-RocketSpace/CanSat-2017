@@ -73,8 +73,8 @@ typedef struct
 	int16_t cTransmitXYZ[3];
 
 
-	int16_t temp1;
-	int16_t temp2;
+	int16_t temp_ds18b20;
+	int16_t temp_bmp280;
 	int16_t pressure;
 
 }transmit_data;

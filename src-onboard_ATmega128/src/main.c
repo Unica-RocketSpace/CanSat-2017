@@ -34,11 +34,25 @@ void blink_led()
 	_delay_ms(100);
 }
 
+void send_calibration_values()
+{
+	const rscs_bmp280_calibration_values_t * bmp280_cal_values = rscs_bmp280_get_calibration_values(bmp280);
+	uint8_t i = 10, mark = 0xFF;
+	while(i--)
+	{
+		rscs_uart_write(uart0, &mark, 1);
+		rscs_uart_write(uart0, &bmp280_cal_values, sizeof(bmp280_cal_values));
+	}
+}
+
 int main()
 {
 	_delay_ms(1000);
 
 	hardwareInit();
+
+	send_calibration_values();
+
 	//set_zero_pressure();	//устанавливаем нулевое давление
 
 	//set_ISC_offset();
@@ -78,7 +92,7 @@ int main()
 		{
 			recalc_ISC();
 		}
-		//send_package();
+		send_package();
 		_delay_ms(500);
 	}
 

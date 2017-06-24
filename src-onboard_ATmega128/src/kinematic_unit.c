@@ -63,6 +63,7 @@ void hardwareInit(void)
 	rscs_bmp280_setup(bmp280, &parameters);								//запись параметров
 	rscs_bmp280_changemode(bmp280, RSCS_BMP280_MODE_NORMAL);			//установка режима NORMAL, постоянные измерения
 
+
 	/*инициализация MPU9255*/
 	MPU9255_init();
 
@@ -295,15 +296,15 @@ void pull_recon_data()
 	/*=====================================================================*/
 
 	//опрос барометра bmp280
-	pressure_read_recon(&TRANSMIT_DATA.pressure, &TRANSMIT_DATA.temp1, &STATE.height, &STATE.temp_bmp280);
+	pressure_read_recon(&TRANSMIT_DATA.pressure, &TRANSMIT_DATA.temp_bmp280, &STATE.height, &STATE.temp_bmp280);
 
 	/*=====================================================================*/
 
 	//опрос термометра ds18b20
 	if (rscs_ds18b20_check_ready())		//проверяем, готовы ли данные
 	{
-		rscs_ds18b20_read_temperature(ds18b20, &TRANSMIT_DATA.temp2);	//записываем температуру
-		STATE.temp_ds18b20 = rscs_ds18b20_count_temperature(ds18b20, TRANSMIT_DATA.temp2);
+		rscs_ds18b20_read_temperature(ds18b20, &TRANSMIT_DATA.temp_ds18b20);	//записываем температуру
+		STATE.temp_ds18b20 = rscs_ds18b20_count_temperature(ds18b20, TRANSMIT_DATA.temp_ds18b20);
 		rscs_ds18b20_start_conversion(ds18b20);
 	}
 	/*=====================================================================*/

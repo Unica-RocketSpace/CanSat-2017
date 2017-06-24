@@ -49,11 +49,10 @@ void full_package()
 {
 	PACKAGE.marker = 0xFFFF;
 
-	PACKAGE.pressure1 = TRANSMIT_DATA.pressure;
-	PACKAGE.pressure2 =  PACKAGE.pressure1;
+	PACKAGE.pressure = TRANSMIT_DATA.pressure;
 
-	PACKAGE.temp1 = TRANSMIT_DATA.temp1;	//температура с bmp280
-	PACKAGE.temp2 = TRANSMIT_DATA.temp2;	//температура с ds18b20
+	PACKAGE.temp_ds18b20 = TRANSMIT_DATA.temp_ds18b20;	//температура с bmp280
+	PACKAGE.temp_bmp280 = TRANSMIT_DATA.temp_bmp280;	//температура с ds18b20
 
 	//запись ускорений
 	PACKAGE.aXYZ[0] = TRANSMIT_DATA.aTransmitXYZ[0];
