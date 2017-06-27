@@ -130,7 +130,7 @@ void printf_rotation_matrix()
 
 void printf_state()
 {
-	printf("time = %ld s  ==================\n", STATE.Time);
+	printf("time = %f s  ==================\n", (float)STATE.Time / 1000);
 	printf("Accelerometer\n");
 	printf("a_RSC: %f, %f, %f\n", STATE.aRelatedXYZ[0], STATE.aRelatedXYZ[1], STATE.aRelatedXYZ[2]);
 	printf("Gyroscope\n");
@@ -149,17 +149,17 @@ void printf_state()
 
 int main()
 {
-	_delay_ms(8000);
+	_delay_ms(3000);
 	blink_led_init();
 	hardwareInit();
 	kinematicInit();
 	dynamicInit();
 	set_zero_pressure();	//устанавливаем нулевое давление
-	//set_ISC_offset();
+	set_ISC_offset();
+	printf_rotation_matrix();
 
 	//FIXME: Внутри функции set_ISC_offset мигалка работает до самого конца,
 	//а сразу после выхода из функции не работает
-	//while (1) {DDRG |= (1 << 3);PORTG ^= (1 << 3);_delay_ms(100);}
 	//set_magn_dir();
 
 
@@ -172,18 +172,18 @@ int main()
 	}*/
 
 
-	//int p_number = 0;
+	int p_number = 0;
 
 	while(1)
 	{
 		blink_led();
 		pull_recon_data();
 		construct_trajectory();
-
 		//Отправляем пакет в формате "PRINT"
-		//p_number++;
+		p_number++;
 		//printf_package(p_number);
 		//printf_state();
+
 
 		//Пересчитываем матрицу поворота по данным с магнитометра
 		//FIXME:пока нигде не управляется STATE.state
@@ -191,13 +191,22 @@ int main()
 		{
 			//recalc_ISC();
 		}
-		send_package();
+		//send_package();
 		//_delay_ms(500);
 
 		//Отправляем пакет в формате "HEX"
 		//send_package();
 		//_delay_ms(500);
 		//if (p_number % 50 == 0) printf_state();
+
+		if (p_number % 20 == 0)
+		{
+			printf("a_RSC: %f, %f, %f\n", STATE.aRelatedXYZ[0], STATE.aRelatedXYZ[1], STATE.aRelatedXYZ[2]);
+			printf("a_ISC: %f, %f, %f\n", STATE.a_XYZ[0], STATE.a_XYZ[1], STATE.a_XYZ[2]);
+			printf("aALT_: %d, %d, %d\n", TRANSMIT_DATA.ADXL_transmit[0], TRANSMIT_DATA.ADXL_transmit[1], TRANSMIT_DATA.ADXL_transmit[2]);
+			printf("aALT_: %f, %f, %f\n\n", STATE.aALT_XYZ[0], STATE.aALT_XYZ[1], STATE.aALT_XYZ[2]);
+			//printf_state();
+		}
 	}
 
 	return 0;

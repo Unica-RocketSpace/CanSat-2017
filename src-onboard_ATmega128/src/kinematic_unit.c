@@ -143,7 +143,7 @@ void RSC_to_ISC_recalc(float * RSC_vect, float * ISC_vect)
 
 void set_ISC_offset()
 {
-	rscs_e error1;
+	rscs_e error1 = 1;
 	float dummy1;
 	int16_t dummy2;
 	int16_t accel_raw_XYZ[3];
@@ -153,9 +153,8 @@ void set_ISC_offset()
 	float x_vect[3], x_unit_vect[3], y_vect[3], y_unit_vect[3], g_unit_vect[3];
 
 
-	error1 = MPU9255_read_imu(accel_raw_XYZ, &dummy2);
+	MPU9255_read_imu(accel_raw_XYZ, &dummy2);
 	MPU9255_recalc_accel(accel_raw_XYZ, accel_XYZ);
-
 
 	while (error1 != 0)
 	{
@@ -168,6 +167,7 @@ void set_ISC_offset()
 		STATE.f_XYZ[2][2] = - g_unit_vect[2];
 
 		error1 = MPU9255_read_imu(accel_raw_XYZ, &dummy2);
+		printf("error1 = %d\n", error1);
 		MPU9255_recalc_accel(accel_raw_XYZ, accel_XYZ);
 	}
 
@@ -263,21 +263,18 @@ void set_zero_pressure()
 	STATE.zero_pressure = (float)pressure32;
 }
 
-void pressure_read_recon(int16_t * raw_pressure, int16_t * raw_temp, float * height, float * temp)
+void pressure_read_recon(int32_t * pressure32, int32_t * temp32, float * height, float * temp)
 {
-	int32_t raw_pressure32, raw_temp32, pressure32, temp32;
+	int32_t raw_pressure32, raw_temp32;
 	rscs_bmp280_read(bmp280, &raw_pressure32, &raw_temp32);
 
-	*raw_pressure = (int16_t)(raw_pressure32 >> 4);
-	*raw_temp = (int16_t)(raw_temp32 >> 4);
 
 	calibrate_values = rscs_bmp280_get_calibration_values(bmp280);
+	rscs_bmp280_calculate(calibrate_values, raw_pressure32, raw_temp32, pressure32, temp32);
 
-	rscs_bmp280_calculate(calibrate_values, raw_pressure32, raw_temp32, &pressure32, &temp32);
-
-	STATE.pressure = (float)pressure32;
+	STATE.pressure = (float)*pressure32;
 	*height = 18.4 * log(STATE.zero_pressure / STATE.pressure);
-	*temp = (float)temp32 / 100;
+	*temp = (float)*temp32 / 100;
 
 }
 
@@ -308,8 +305,9 @@ void pull_recon_data()
 	/*=====================================================================*/
 
 	//опрос акселерометра ADXL345
-	rscs_adxl345_GetGXYZ(adxl345, &TRANSMIT_DATA.ADXL_transmit[0], &TRANSMIT_DATA.ADXL_transmit[1], &TRANSMIT_DATA.ADXL_transmit[2],
+	rscs_e error = rscs_adxl345_GetGXYZ(adxl345, &TRANSMIT_DATA.ADXL_transmit[0], &TRANSMIT_DATA.ADXL_transmit[1], &TRANSMIT_DATA.ADXL_transmit[2],
 									&STATE.aALT_XYZ[0], &STATE.aALT_XYZ[1], &STATE.aALT_XYZ[2]);
+	printf("adxl_read_error: %d", error);
 
 	STATE.previousTime = STATE.Time;
 	STATE.Time = rscs_time_get();
@@ -393,7 +391,7 @@ void construct_trajectory()
 
 	//определение ускорений
 	RSC_to_ISC_recalc(STATE.aRelatedXYZ, STATE.a_XYZ);
-	STATE.a_XYZ[2] = STATE.a_XYZ[2] - G_VECT;
+	STATE.a_XYZ[2] = STATE.a_XYZ[2] + G_VECT;
 
 	//определение скоростей
 	STATE.v_XYZ[0] = STATE.v_XYZ[0] + (STATE.a_XYZ_prev[0] + STATE.a_XYZ[0]) * dt / 2;

@@ -81,6 +81,35 @@ void MPU9255_init()
 	MPU9255_write_register(GYRO_AND_ACCEL,	108,	0b00000000);	//power managment 2
 	MPU9255_write_register(GYRO_AND_ACCEL,	27,		(0b00000000 | (GYRO_RANGE << 4)) );	//gyro config (rate 500dps = 01, Fch_b = 00)
 
+	/*Установка OFFSET-ов*/
+	uint8_t x_offset_l, x_offset_h, y_offset_l, y_offset_h, z_offset_l, z_offset_h;
+	int16_t x_offset, y_offset, z_offset;
+	MPU9255_read_register(GYRO_AND_ACCEL, 120, &x_offset_l, 1);
+	MPU9255_read_register(GYRO_AND_ACCEL, 119, &x_offset_h, 1);
+	x_offset = (x_offset_h << 7) + (x_offset_l >> 1) - 17;
+	MPU9255_write_register(GYRO_AND_ACCEL,	120,	(uint8_t)(x_offset << 1));
+	MPU9255_write_register(GYRO_AND_ACCEL,	119,	(uint8_t)(x_offset >> 7));
+
+
+	MPU9255_read_register(GYRO_AND_ACCEL, 123, &y_offset_l, 1);
+	MPU9255_read_register(GYRO_AND_ACCEL, 122, &y_offset_h, 1);
+	y_offset = (y_offset_h << 7) + (y_offset_l >> 1) - 16;
+	MPU9255_write_register(GYRO_AND_ACCEL,	123,	(uint8_t)(y_offset << 1));
+	MPU9255_write_register(GYRO_AND_ACCEL,	122,	(uint8_t)(y_offset >> 7));
+
+
+	MPU9255_read_register(GYRO_AND_ACCEL, 126, &z_offset_l, 1);
+	MPU9255_read_register(GYRO_AND_ACCEL, 125, &z_offset_h, 1);
+	z_offset = (z_offset_h << 7) + (z_offset_l >> 1) - 20;
+	MPU9255_write_register(GYRO_AND_ACCEL,	126,	(uint8_t)(z_offset << 1));
+	MPU9255_write_register(GYRO_AND_ACCEL,	125,	(uint8_t)(z_offset >> 7));
+
+
+
+	/*MPU9255_write_register(GYRO_AND_ACCEL,	123,	(uint8_t)(Y_ACCEL_OFFSET << 1));
+	MPU9255_write_register(GYRO_AND_ACCEL,	122,	(uint8_t)(Y_ACCEL_OFFSET << 7));
+	MPU9255_write_register(GYRO_AND_ACCEL,	126,	(uint8_t)(Z_ACCEL_OFFSET << 1));
+	MPU9255_write_register(GYRO_AND_ACCEL,	125,	(uint8_t)(Z_ACCEL_OFFSET << 7));*/
 
 	MPU9255_write_register(GYRO_AND_ACCEL,	55,		0b00000010);	//режим bypass on
 	MPU9255_write_register(COMPASS,		  	0x0A,	0b00010110);	//control 1
@@ -150,8 +179,9 @@ end:
 
 void MPU9255_recalc_accel(const int16_t * raw_accel_XYZ, float * accel_XYZ)
 {
-	for (int i = 0; i < 3; i++)
-		accel_XYZ[i] = (float)(raw_accel_XYZ[i]) * MPU9255_ACCEL_SCALE_FACTOR * pow(2, ACCEL_RANGE);
+	accel_XYZ[0] = - (float)(raw_accel_XYZ[0]) * MPU9255_ACCEL_SCALE_FACTOR * X_ACCEL_KOEFF * pow(2, ACCEL_RANGE);
+	accel_XYZ[1] = - (float)(raw_accel_XYZ[1]) * MPU9255_ACCEL_SCALE_FACTOR * Y_ACCEL_KOEFF * pow(2, ACCEL_RANGE);
+	accel_XYZ[2] = - (float)(raw_accel_XYZ[2]) * MPU9255_ACCEL_SCALE_FACTOR * Z_ACCEL_KOEFF * pow(2, ACCEL_RANGE);
 }
 
 

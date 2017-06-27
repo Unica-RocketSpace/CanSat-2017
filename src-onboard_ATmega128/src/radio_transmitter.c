@@ -24,6 +24,7 @@
 
 
 rscs_uart_bus_t * uart0;
+rscs_uart_bus_t * uart1;
 package PACKAGE;
 
 void transmition_init()
@@ -36,9 +37,16 @@ void transmition_init()
 	rscs_uart_set_parity(uart0, RSCS_UART_PARITY_NONE);
 	rscs_uart_set_stop_bits(uart0, RSCS_UART_STOP_BITS_ONE);
 
+	uart1 = rscs_uart_init(RSCS_UART_ID_UART1,
+				RSCS_UART_FLAG_ENABLE_TX /*| RSCS_UART_FLAG_BUFFER_TX*/);
+	rscs_uart_set_baudrate(uart1, 9600);
+	rscs_uart_set_character_size(uart1, 8);
+	rscs_uart_set_parity(uart1, RSCS_UART_PARITY_NONE);
+	rscs_uart_set_stop_bits(uart1, RSCS_UART_STOP_BITS_ONE);
+
 //FIXME: УБРАТЬ!!!!!!!
 	// настраиваем printf на уарт0
-	//stdout = rscs_make_uart_stream(uart0);
+	stdout = rscs_make_uart_stream(uart1);
 
 	package PACKAGE_ = { 0 };
 	PACKAGE = PACKAGE_;

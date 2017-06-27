@@ -20,6 +20,7 @@ typedef struct {
 	int16_t P2, P3, P4, P5, P6, P7, P8, P9;
 } rscs_bmp280_calibration_values_t;
 
+void print_calibration_values();
 
 /*функция пересчета ускорений (в м/с^2)*/
 void recalc_accel(int16_t * raw_accel_XYZ, float * accel_XYZ);
@@ -32,7 +33,7 @@ void recalc_compass(int16_t * raw_compass_XYZ, float * compass_XYZ);
 
 float recalc_ds18b20Temp(uint16_t raw_temp);
 float recalc_bmp280Temp(int32_t rawtemp);
-float recalc_bmp280Pressure(int32_t rawpress, int32_t rawtemp);
+float recalc_bmp280Pressure(int32_t rawpress);
 
 
 #endif /* RECALCULATION_H_ */

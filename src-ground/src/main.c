@@ -124,7 +124,7 @@ int main()
 			{
 				global_data DATA =
 				{
-						.pressure = recalc_bmp280Pressure(pack->pressure, pack->temp_bmp280),
+						.pressure = recalc_bmp280Pressure(pack->pressure),
 						.temp_bmp280 = recalc_bmp280Temp(pack->temp_bmp280),
 						.temp_ds18b20 = recalc_ds18b20Temp(pack->temp_ds18b20),
 						.time = (float)pack->time / 1000

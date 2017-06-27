@@ -11,6 +11,7 @@
 #include <rscs/uart.h>
 
 extern rscs_uart_bus_t * uart0;
+extern rscs_uart_bus_t * uart1 ;
 
 //#pragma pack(push,1)
 typedef struct
@@ -19,10 +20,10 @@ typedef struct
 
 	uint16_t number;	//the number of packet
 
-	uint16_t pressure;
+	int32_t pressure;
 
 	uint16_t temp_ds18b20;
-	uint16_t temp_bmp280;
+	int32_t temp_bmp280;
 
 	uint16_t aXYZ[3];	//accelerometer raw data
 	uint16_t gXYZ[3];	//gyro raw data

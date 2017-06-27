@@ -74,8 +74,8 @@ typedef struct
 
 
 	int16_t temp_ds18b20;
-	int16_t temp_bmp280;
-	int16_t pressure;
+	int32_t temp_bmp280;
+	int32_t pressure;
 
 }transmit_data;
 /*=================================================================================*/
@@ -101,7 +101,7 @@ void hardwareInit();
 void set_zero_pressure();
 
 //ЧИТАЕТ BMP280, ПЕРЕВОДИТ В uint16_t И ПЕРЕСЧИТЫВАЕТ ДАВЛЕНИЕz В float
-void pressure_read_recon(int16_t * raw_pressure, int16_t * raw_temp, float * height, float * temp);
+void pressure_read_recon(int32_t * pressure32, int32_t * temp32, float * height, float * temp);
 
 //ПЕРЕВОДИТ ПОЛУЧЕННЫЙ ВЕКТОР ИЗ СВЯЗАННОЙ СИСТЕМЫ КООРДИНАТ В ИНЕРЦИАЛЬНУЮ, ИСПОЛЬЗУЯ МАТРИЦУ ПОВОРОТА STATE.fXYZ[3][3]
 void RSC_to_ISC_recalc(float * RSC_vect, float * ISC_vect);		//R - related, I - inertional
