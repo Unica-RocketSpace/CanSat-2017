@@ -12,8 +12,7 @@
 
 #define MPU9255_ADR 0b1101000	// если AD0 = 0, иначе адрес 1101001
 #define KOMPASS_ADR 0b0001100	// если CAD1 = CAD0 = 0, иначе адрес другой; режим pass-through mode
-//#define MPU9255_ACCEL_SCALE_FACTOR	0.00062217
-#define MPU9255_GYRO_SCALE_FACTOR	0.00013323
+#define MPU9255_GYRO_SCALE_FACTOR	M_PI / (180 * 131)
 #define MPU9255_ACCEL_SCALE_FACTOR	0.00055217
 
 #define X_ACCEL_OFFSET		0x003F//( 0x7FC1 )
@@ -23,9 +22,24 @@
 #define Y_ACCEL_KOEFF		1.0833494
 #define Z_ACCEL_KOEFF		1.0717212
 
+#define X_GYRO_KOEFF		1
+#define Y_GYRO_KOEFF		1
+#define Z_GYRO_KOEFF		1
+
+#define X_COMPAS_OFFSET		479.1609
+#define Y_COMPAS_OFFSET		42.0570
+#define Z_COMPAS_OFFSET		191.5415
+#define XX_COMPAS_TRANSFORM_MATIX	0.004041
+#define YY_COMPAS_TRANSFORM_MATIX	0.004061
+#define ZZ_COMPAS_TRANSFORM_MATIX	0.003486
+#define XY_COMPAS_TRANSFORM_MATIX	-0.000029
+#define XZ_COMPAS_TRANSFORM_MATIX	-0.000166
+#define YZ_COMPAS_TRANSFORM_MATIX	-0.000030
+
+#define ACCEL_RANGE			1			//2g - 00, 4g - 01, 8g - 10, 16g - 11
+#define GYRO_RANGE			0			//250degps - 00, 500degps - 01, 1000degps - 10, 2000degps - 11
+
 #define GOTO_END_IF_ERROR(op) if ((error = op) != RSCS_E_NONE) goto end;
-#define ACCEL_RANGE 1					//2g - 00, 4g - 01, 8g - 10, 16g - 11
-#define GYRO_RANGE 1
 
 typedef enum
 {

@@ -23,6 +23,13 @@ extern rscs_adxl345_t * adxl345;
 
 #define G_VECT 9.81
 
+#define ACCEL_KALMAN_GAIN	0.5
+#define GYRO_KALMAN_GAIN	0.1
+
+#define ACCEL_NOISE	0.4
+#define GYRO_NOISE	0.01
+
+
 /*=================================================================================*/
 /*===============================ОПИСАНИЕ=СТРУКТУР=================================*/
 /*=================================================================================*/
@@ -33,6 +40,8 @@ typedef struct
 	float aRelatedXYZ[3];	//ускорения в единицах g (в ССК)
 	float aALT_XYZ[3];		//ускорения в единицах g (в ССК) альтернативное	FIXME:ВРЕМЕННО
 	float gRelatedXYZ[3];	//угловые скорости в degps (в ССК)
+	float gRelatedXYZ_prev[3];
+	float aRelatedXYZ_prev[3];
 	float cRelatedXYZ[3];	//косинусы углов вектора магнитного поля с осями ССК
 	float height;
 	float zero_pressure;
@@ -78,6 +87,20 @@ typedef struct
 	int32_t pressure;
 
 }transmit_data;
+
+
+typedef struct
+{
+	uint32_t zero;
+	uint32_t imu;
+	uint32_t filters;
+	uint32_t bmp280;
+	uint32_t ds18b20;
+	uint32_t adxl345;
+	uint32_t transmition;
+	uint32_t total;
+} times;
+
 /*=================================================================================*/
 /*=================================================================================*/
 
@@ -85,6 +108,8 @@ typedef struct
 extern state STATE;
 
 extern transmit_data TRANSMIT_DATA;
+
+extern times TIMES;
 
 extern const rscs_bmp280_calibration_values_t * calibrate_values;
 
@@ -124,6 +149,10 @@ void calculate_height();
 //РАССЧИТЫВАЕТ МАТРИЦУ ПОВОРОТА, УГЛОВЫЕ СКОРОСТИ, СКОРОСТИ, УСКОРЕНИЯ И ПЕРЕМЕЩЕНИЯ В ИСК И ЗАПИСЫВАЕТ ИХ В STATE
 void construct_trajectory();
 
+void apply_KalmanFilter(float * sensor_data, const float * sensor_data_prev, float Kalman_gain, int data_array_size);
+
+void apply_NoiseFilter(float * sensor_data, float noise, int data_array_size);
+
 //РЕШАЕТ СИСТЕМУ ЛИНЕЙНЫХ УРАВНЕНИЙ МЕТОДОМ КРАМЕРА
 //ПАРАМЕТР:		* matrix - ссылка на массив[3][3] множителей переменных
 //ПАРАМЕТР:		* vector - ссылка на вектор[3] свободных членов
@@ -140,6 +169,10 @@ void replaceColumn (float * matrix, float * vector, int column_n);
 //НАХОДИТ ОПРЕДЕЛИТЕЛЬ МАТРИЦЫ 3х3
 //ПАРАМЕТР:		* matrix - ссылка на массив[3][3]
 float getDeterminant (float * matrix);
+
+float functionForRK(uint8_t i, float * y);
+
+void solveByRungeKutta(float dt, float * y, float * y_new);
 
 //ПЕРЕДАЕТ ПЕРЕМЕЩЕНИЯ АППАРАТА В ИСК
 //ПАРАМЕТР:		* translations - ссылка на массив[3], в который будут записаны перемещения аппарата по осям X, Y и Z соответственно (м)

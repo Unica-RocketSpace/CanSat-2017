@@ -116,21 +116,34 @@ void printf_package(uint16_t package_number)
 
 void printf_rotation_matrix()
 {
-	printf("(%f), (%f), (%f)\n", STATE.f_XYZ[0][0],
-								 STATE.f_XYZ[0][1],
-								 STATE.f_XYZ[0][2]);
-	printf("(%f), (%f), (%f)\n", STATE.f_XYZ[1][0],
-								 STATE.f_XYZ[1][1],
-								 STATE.f_XYZ[1][2]);
-	printf("(%f), (%f), (%f)\n", STATE.f_XYZ[2][0],
-								 STATE.f_XYZ[2][1],
-								 STATE.f_XYZ[2][2]);
+	printf("(%f),   (%f),   (%f)\n", STATE.f_XYZ[0][0],
+									 STATE.f_XYZ[0][1],
+									 STATE.f_XYZ[0][2]);
+	printf("(%f),   (%f),   (%f)\n", STATE.f_XYZ[1][0],
+									 STATE.f_XYZ[1][1],
+									 STATE.f_XYZ[1][2]);
+	printf("(%f),   (%f),   (%f)\n", STATE.f_XYZ[2][0],
+									 STATE.f_XYZ[2][1],
+									 STATE.f_XYZ[2][2]);
 	printf("\n");
+}
+
+void printf_rotation_matrix_string()
+{
+	printf("%f, %f, %f, %f, %f, %f, %f, %f, %f\n",	STATE.f_XYZ[0][0],
+									 	 	 		STATE.f_XYZ[0][1],
+									 	 	 		STATE.f_XYZ[0][2],
+									 	 	 		STATE.f_XYZ[1][0],
+									 	 	 		STATE.f_XYZ[1][1],
+									 	 	 		STATE.f_XYZ[1][2],
+									 	 	 		STATE.f_XYZ[2][0],
+									 	 	 		STATE.f_XYZ[2][1],
+									 	 	 		STATE.f_XYZ[2][2]);
 }
 
 void printf_state()
 {
-	printf("time = %f s  ==================\n", (float)STATE.Time / 1000);
+	printf("time = %f ns  ==================\n", (float)STATE.Time / 1000);
 	printf("Accelerometer\n");
 	printf("a_RSC: %f, %f, %f\n", STATE.aRelatedXYZ[0], STATE.aRelatedXYZ[1], STATE.aRelatedXYZ[2]);
 	printf("Gyroscope\n");
@@ -156,7 +169,7 @@ int main()
 	dynamicInit();
 	set_zero_pressure();	//устанавливаем нулевое давление
 	set_ISC_offset();
-	printf_rotation_matrix();
+	//printf_rotation_matrix();
 
 	//FIXME: Внутри функции set_ISC_offset мигалка работает до самого конца,
 	//а сразу после выхода из функции не работает
@@ -177,8 +190,10 @@ int main()
 	while(1)
 	{
 		blink_led();
+		//set_magn_dir();
 		pull_recon_data();
-		construct_trajectory();
+		//construct_trajectory();
+
 		//Отправляем пакет в формате "PRINT"
 		p_number++;
 		//printf_package(p_number);
@@ -186,25 +201,45 @@ int main()
 
 
 		//Пересчитываем матрицу поворота по данным с магнитометра
-		//FIXME:пока нигде не управляется STATE.state
-		if (STATE.state & (1 << 1))
+
+		/*if (STATE.state & (1 << 1))
 		{
-			//recalc_ISC();
-		}
+			recalc_ISC();
+			printf("recalced matrix:  \n");
+			printf_rotation_matrix();
+		}*/
+
 		//send_package();
 		//_delay_ms(500);
 
 		//Отправляем пакет в формате "HEX"
-		//send_package();
-		//_delay_ms(500);
-		//if (p_number % 50 == 0) printf_state();
+		send_package();
+		TIMES.transmition = rscs_time_get() - TIMES.total;
+		//TIMES.total = TIMES.total + TIMES.transmition;
 
-		if (p_number % 20 == 0)
+		if (p_number % 1 == 0)
 		{
-			printf("a_RSC: %f, %f, %f\n", STATE.aRelatedXYZ[0], STATE.aRelatedXYZ[1], STATE.aRelatedXYZ[2]);
-			printf("a_ISC: %f, %f, %f\n", STATE.a_XYZ[0], STATE.a_XYZ[1], STATE.a_XYZ[2]);
-			printf("aALT_: %d, %d, %d\n", TRANSMIT_DATA.ADXL_transmit[0], TRANSMIT_DATA.ADXL_transmit[1], TRANSMIT_DATA.ADXL_transmit[2]);
-			printf("aALT_: %f, %f, %f\n\n", STATE.aALT_XYZ[0], STATE.aALT_XYZ[1], STATE.aALT_XYZ[2]);
+			//printf("%f, %f, %f\n", STATE.cRelatedXYZ[0], STATE.cRelatedXYZ[1], STATE.cRelatedXYZ[2]);
+			//printf("g_RSC: %f, %f, %f\n", STATE.gRelatedXYZ[0], STATE.gRelatedXYZ[1], STATE.gRelatedXYZ[2]);
+			//printf("g_ISC: %f, %f, %f\n\n", STATE.w_XYZ[0], STATE.w_XYZ[1], STATE.w_XYZ[2]);
+			//printf("a_RSC: %f, %f, %f\n", STATE.aRelatedXYZ[0], STATE.aRelatedXYZ[1], STATE.aRelatedXYZ[2]);
+			//printf("a_ISC: %f, %f, %f\n", STATE.a_XYZ[0], STATE.a_XYZ[1], STATE.a_XYZ[2]);
+			//printf_rotation_matrix();
+			//printf_rotation_matrix_string();
+
+			printf("Zero = %ld\n", TIMES.zero);
+			printf("Imu = %ld\n", TIMES.imu);
+			printf("Filters = %ld\n", TIMES.filters);
+			printf("Bmp280 = %ld\n", TIMES.bmp280);
+			printf("Bs18b20 = %ld\n", TIMES.ds18b20);
+			printf("Adxl345 = %ld\n", TIMES.adxl345);
+			printf("Transmition = %ld\n", TIMES.transmition);
+			printf("Total = %ld\n\n", TIMES.total - TIMES.zero);
+			printf("Cycle = %ld\n\n", rscs_time_get() - TIMES.zero);
+
+			//printf("Determinant = %f\n", getDeterminant(*STATE.f_XYZ));
+			//printf("TIME: %f c\n\n", (float)STATE.Time / 1000);
+
 			//printf_state();
 		}
 	}

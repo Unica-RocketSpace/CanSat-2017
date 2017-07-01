@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <sofa.h>
 #include <util/delay.h>
 
 #include <rscs/stdext/stdio.h>
@@ -71,9 +72,9 @@ void MPU9255_init()
 	MPU9255_write_register(GYRO_AND_ACCEL,	107,	0b10000000);	//RESET
 
 	MPU9255_write_register(GYRO_AND_ACCEL,	25,		0b00000001);	//Sample Rate Divider
-	MPU9255_write_register(GYRO_AND_ACCEL,	26,		0b00000001);	//config (DLPF = 001)
+	MPU9255_write_register(GYRO_AND_ACCEL,	26,		0b00000110);	//config (DLPF = 110)
 	MPU9255_write_register(GYRO_AND_ACCEL,	28,		(0b00000000 | (ACCEL_RANGE << 3))); 	//accel config (rate 4g = 01)
-	MPU9255_write_register(GYRO_AND_ACCEL,	29,		0b00000001);	//accel config 2 (Fch_b = 00, DLPF = 001)
+	MPU9255_write_register(GYRO_AND_ACCEL,	29,		0b00000110);	//accel config 2 (Fch_b = 0, DLPF = 110)
 	MPU9255_write_register(GYRO_AND_ACCEL,	35,		0b00000000);	//FIFO enable (not enabled)
 	MPU9255_write_register(GYRO_AND_ACCEL,	56,		0b00000000);	//interrupt enable (int disable = 0)
 	MPU9255_write_register(GYRO_AND_ACCEL,	106,	0b00000000);	//user control
@@ -179,29 +180,42 @@ end:
 
 void MPU9255_recalc_accel(const int16_t * raw_accel_XYZ, float * accel_XYZ)
 {
-	accel_XYZ[0] = - (float)(raw_accel_XYZ[0]) * MPU9255_ACCEL_SCALE_FACTOR * X_ACCEL_KOEFF * pow(2, ACCEL_RANGE);
-	accel_XYZ[1] = - (float)(raw_accel_XYZ[1]) * MPU9255_ACCEL_SCALE_FACTOR * Y_ACCEL_KOEFF * pow(2, ACCEL_RANGE);
-	accel_XYZ[2] = - (float)(raw_accel_XYZ[2]) * MPU9255_ACCEL_SCALE_FACTOR * Z_ACCEL_KOEFF * pow(2, ACCEL_RANGE);
+	accel_XYZ[0] = (float)(raw_accel_XYZ[0]) * MPU9255_ACCEL_SCALE_FACTOR * pow(2, ACCEL_RANGE) * X_ACCEL_KOEFF;
+	accel_XYZ[1] = (float)(raw_accel_XYZ[1]) * MPU9255_ACCEL_SCALE_FACTOR * pow(2, ACCEL_RANGE) * Y_ACCEL_KOEFF;
+	accel_XYZ[2] = (float)(raw_accel_XYZ[2]) * MPU9255_ACCEL_SCALE_FACTOR * pow(2, ACCEL_RANGE) * Z_ACCEL_KOEFF;
 }
 
 
 void MPU9255_recalc_gyro(const int16_t * raw_gyro_XYZ, float * gyro_XYZ)
 {
 	for (int i = 0; i < 3; i++)
-		gyro_XYZ[i] = (float)(raw_gyro_XYZ[i]) * MPU9255_GYRO_SCALE_FACTOR * pow(2, GYRO_RANGE);
+		gyro_XYZ[i] = (float)(raw_gyro_XYZ[i]) * MPU9255_GYRO_SCALE_FACTOR * pow(2, GYRO_RANGE) * Z_GYRO_KOEFF;
 }
 
 void MPU9255_recalc_compass(const int16_t * raw_compass_XYZ, float * compass_XYZ)
 {
-	float x, y, z;
+	/*float x, y, z;
 
-	float length = sqrt(pow(*(raw_compass_XYZ + 0), 2) + pow(*(raw_compass_XYZ + 1), 2) + pow(*(raw_compass_XYZ + 2), 2));
+	float length = sqrt(pow(raw_compass_XYZ[0], 2) + pow(raw_compass_XYZ[1], 2) + pow(raw_compass_XYZ[2], 2));
 
 	x = (float)raw_compass_XYZ[1] / length;
 	y = (float)raw_compass_XYZ[0] / length;
 	z = - (float)raw_compass_XYZ[2] / length;
 
+
 	compass_XYZ[0] = x;
 	compass_XYZ[1] = y;
-	compass_XYZ[2] = z;
+	compass_XYZ[2] = z;*/
+	float raw_data[3] = {(float)raw_compass_XYZ[0], (float)raw_compass_XYZ[1], (float)raw_compass_XYZ[2]};
+	float offset_vector[3] = {X_COMPAS_OFFSET, Y_COMPAS_OFFSET, Z_COMPAS_OFFSET};
+	float transform_matrix[3][3] =	{	{XX_COMPAS_TRANSFORM_MATIX, XY_COMPAS_TRANSFORM_MATIX, XZ_COMPAS_TRANSFORM_MATIX},
+										{XY_COMPAS_TRANSFORM_MATIX, YY_COMPAS_TRANSFORM_MATIX, YZ_COMPAS_TRANSFORM_MATIX},
+										{XZ_COMPAS_TRANSFORM_MATIX, YZ_COMPAS_TRANSFORM_MATIX, ZZ_COMPAS_TRANSFORM_MATIX}};
+
+	//printf("raw_compass_XYZ = %d, %d, %d\n", raw_compass_XYZ[0], raw_compass_XYZ[1], raw_compass_XYZ[2]);
+	//printf("raw_compass_XYZ = %f, %f, %f\n", (float)raw_compass_XYZ[0], (float)raw_compass_XYZ[1], (float)raw_compass_XYZ[2]);
+	iauPmp(raw_data, offset_vector, compass_XYZ);
+	//printf("offset_compass_XYZ = %f, %f, %f\n", compass_XYZ[0], compass_XYZ[1], compass_XYZ[2]);
+	iauRxp(transform_matrix, compass_XYZ, compass_XYZ);
+	//printf("transform_compass_XYZ = %f, %f, %f\n\n", compass_XYZ[0], compass_XYZ[1], compass_XYZ[2]);
 }

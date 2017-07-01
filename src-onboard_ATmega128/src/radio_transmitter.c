@@ -62,6 +62,10 @@ void full_package()
 	PACKAGE.temp_ds18b20 = TRANSMIT_DATA.temp_ds18b20;	//температура с bmp280
 	PACKAGE.temp_bmp280 = TRANSMIT_DATA.temp_bmp280;	//температура с ds18b20
 
+	PACKAGE.a_adxl345[0] = TRANSMIT_DATA.ADXL_transmit[0];
+	PACKAGE.a_adxl345[1] = TRANSMIT_DATA.ADXL_transmit[1];
+	PACKAGE.a_adxl345[2] = TRANSMIT_DATA.ADXL_transmit[2];
+
 	//запись ускорений
 	PACKAGE.aXYZ[0] = TRANSMIT_DATA.aTransmitXYZ[0];
 	PACKAGE.aXYZ[1] = TRANSMIT_DATA.aTransmitXYZ[1];
@@ -79,6 +83,7 @@ void full_package()
 
 	//запись текущего времени
 	PACKAGE.time = STATE.Time;
+	PACKAGE.state = STATE.state;
 
 	//запись состояния (во внешнем прерывании)
 

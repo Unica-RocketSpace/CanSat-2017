@@ -7,6 +7,7 @@
 
 #include <math.h>
 #include <sofa.h>
+#include <stdlib.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
 
@@ -26,6 +27,7 @@
 
 state STATE;
 transmit_data TRANSMIT_DATA;
+times TIMES;
 rscs_bmp280_descriptor_t * bmp280;
 rscs_ds18b20_t * ds18b20;
 rscs_adxl345_t * adxl345;
@@ -68,7 +70,8 @@ void hardwareInit(void)
 
 	/*инициализация ADXL345*/
 	adxl345 = rscs_adxl345_initi2c(RSCS_ADXL345_ADDR_ALT);
-	rscs_adxl345_set_range(adxl345, RSCS_ADXL345_RANGE_2G);
+	rscs_adxl345_startup(adxl345);
+	rscs_adxl345_set_range(adxl345, RSCS_ADXL345_RANGE_4G);
 	rscs_adxl345_set_rate(adxl345, RSCS_ADXL345_RATE_100HZ);
 
 	/*инициализация таймеров*/
@@ -97,7 +100,7 @@ void kinematicInit()
 	STATE_.a_XYZ_prev[0] = 0;	STATE_.a_XYZ_prev[1] = 0;	STATE_.a_XYZ_prev[2] = 0;
 	STATE_.v_XYZ[0] = 0;		STATE_.v_XYZ[1] = 0;		STATE_.v_XYZ[2] = 0;
 	STATE_.v_XYZ_prev[0] = 0;	STATE_.v_XYZ_prev[1] = 0;	STATE_.v_XYZ_prev[2] = 0;
-	STATE.s_XYZ[0] = 0;			STATE.s_XYZ[1] = 0;			STATE.s_XYZ[2] = 0;
+	STATE_.s_XYZ[0] = 0;		STATE_.s_XYZ[1] = 0;		STATE_.s_XYZ[2] = 0;
 	STATE_.w_XYZ[0] = 0;		STATE_.w_XYZ[1] = 0;		STATE_.w_XYZ[2] = 0;
 	STATE_.w_XYZ_prev[0] = 0;	STATE_.w_XYZ_prev[1] = 0;	STATE_.w_XYZ_prev[2] = 0;
 
@@ -135,10 +138,10 @@ void kinematicInit()
 
 void RSC_to_ISC_recalc(float * RSC_vect, float * ISC_vect)
 {
-	//iauRxp(STATE.f_XYZ, RSC_vect, ISC_vect);
-	ISC_vect[0] = RSC_vect[0] * STATE.f_XYZ[0][0] + RSC_vect[1] * STATE.f_XYZ[0][1] + RSC_vect[2] * STATE.f_XYZ[0][2];
-	ISC_vect[1] = RSC_vect[0] * STATE.f_XYZ[1][0] + RSC_vect[1] * STATE.f_XYZ[1][1] + RSC_vect[2] * STATE.f_XYZ[1][2];
-	ISC_vect[2] = RSC_vect[0] * STATE.f_XYZ[2][0] + RSC_vect[1] * STATE.f_XYZ[2][1] + RSC_vect[2] * STATE.f_XYZ[2][2];
+	iauRxp(STATE.f_XYZ, RSC_vect, ISC_vect);
+	//ISC_vect[0] = RSC_vect[0] * STATE.f_XYZ[0][0] + RSC_vect[1] * STATE.f_XYZ[0][1] + RSC_vect[2] * STATE.f_XYZ[0][2];
+	//ISC_vect[1] = RSC_vect[0] * STATE.f_XYZ[1][0] + RSC_vect[1] * STATE.f_XYZ[1][1] + RSC_vect[2] * STATE.f_XYZ[1][2];
+	//ISC_vect[2] = RSC_vect[0] * STATE.f_XYZ[2][0] + RSC_vect[1] * STATE.f_XYZ[2][1] + RSC_vect[2] * STATE.f_XYZ[2][2];
 }
 
 void set_ISC_offset()
@@ -152,7 +155,6 @@ void set_ISC_offset()
 	float x1_unit_vect[3] = {1, 0, 0};
 	float x_vect[3], x_unit_vect[3], y_vect[3], y_unit_vect[3], g_unit_vect[3];
 
-
 	MPU9255_read_imu(accel_raw_XYZ, &dummy2);
 	MPU9255_recalc_accel(accel_raw_XYZ, accel_XYZ);
 
@@ -162,9 +164,9 @@ void set_ISC_offset()
 
 		//float g_vect = sqrt(pow(*(first_accel_XYZ + 0), 2) + pow(*(first_accel_XYZ + 1), 2) + pow(*(first_accel_XYZ + 2), 2));
 
-		STATE.f_XYZ[2][0] = - g_unit_vect[0];
-		STATE.f_XYZ[2][1] = - g_unit_vect[1];
-		STATE.f_XYZ[2][2] = - g_unit_vect[2];
+		STATE.f_XYZ[2][0] = g_unit_vect[0];
+		STATE.f_XYZ[2][1] = g_unit_vect[1];
+		STATE.f_XYZ[2][2] = g_unit_vect[2];
 
 		error1 = MPU9255_read_imu(accel_raw_XYZ, &dummy2);
 		printf("error1 = %d\n", error1);
@@ -172,10 +174,10 @@ void set_ISC_offset()
 	}
 
 
-	iauPxp(x1_unit_vect, g_unit_vect, y_vect);
+	iauPxp(g_unit_vect, x1_unit_vect, y_vect);
 	iauPn(y_vect, &dummy1, y_unit_vect);
 
-	iauPxp(g_unit_vect, y_unit_vect, x_vect);
+	iauPxp(y_unit_vect, g_unit_vect, x_vect);
 	iauPn(x_vect, &dummy1, x_unit_vect);
 
 	STATE.f_XYZ[0][0] = x_unit_vect[0];
@@ -190,23 +192,24 @@ void set_ISC_offset()
 
 void set_magn_dir()
 {
-	rscs_e error1;
+	rscs_e error1 = 1;
 	int16_t compass_raw_XYZ[3];
 	float compass_XYZ[3];
 	float dummy1;
 	float B_unit_vect[3];
 
-	error1 = MPU9255_read_compass(compass_raw_XYZ);
-	MPU9255_recalc_compass(compass_raw_XYZ, compass_XYZ);
+	MPU9255_read_compass(compass_raw_XYZ);
+	MPU9255_recalc_compass(compass_raw_XYZ, STATE.cRelatedXYZ);
 
 	while (error1 != 0)
 	{
-		iauPn(compass_XYZ, &dummy1, B_unit_vect);
+		//iauPn(compass_XYZ, &dummy1, B_unit_vect);
 
 		RSC_to_ISC_recalc(B_unit_vect, STATE.B_XYZ);
+		iauPn(STATE.B_XYZ, &dummy1, STATE.B_XYZ);
 
 		error1 = MPU9255_read_compass(compass_raw_XYZ);
-		MPU9255_recalc_compass(compass_raw_XYZ, compass_XYZ);
+		MPU9255_recalc_compass(compass_raw_XYZ, STATE.cRelatedXYZ);
 	}
 }
 
@@ -222,10 +225,12 @@ void recalc_ISC()
 	}
 
 	RSC_to_ISC_recalc(compass_XYZ, B_vect);		//пересчет вектора магнитного поля в ИСК
+	iauPn(B_vect, &dummy1, B_unit_vect);
 	iauPxp(STATE.B_XYZ, B_unit_vect, C_vect);	//создаем ось вращения С, перпендикулярную плоскости (M,M1)
 	iauPn(C_vect, &dummy1, C_unit_vect);		//нормируем вектор С
 
 	iauPxp(C_unit_vect, STATE.B_XYZ, A_unit_vect);	//находим третий вектор (А) системы координат BАС
+	iauPn(A_unit_vect, &dummy1, A_unit_vect);
 
 	//создание матрицы перехода (М) (BАС->ИСК) и (М) транспонированной
 	float M[3][3] = {	{B_unit_vect[0], A_unit_vect[0], C_unit_vect[0]},
@@ -238,9 +243,9 @@ void recalc_ISC()
 	float sinangle = sin(acos(cosangle));					//находим синус
 
 	//создание матрицы поворота (R)
-	float R[3][3] = {	{cosangle,		sinangle,	0},
-						{- sinangle,	cosangle,	0},
-						{0,				0,			1}	};
+	float R[3][3] = {	{cosangle,	-sinangle,	0},
+						{sinangle,	cosangle,	0},
+						{0,			0,			1}	};
 	//создание матрицы трансформации (Т) - переход, поворот, переход
 	float T[3][3];
 	//Т = M_1 * R * M (в два этапа)
@@ -249,7 +254,6 @@ void recalc_ISC()
 
 	//переписываем STATE.f_XYZ
 	iauRxr(T, STATE.f_XYZ, STATE.f_XYZ);
-
 }
 
 void set_zero_pressure()
@@ -275,24 +279,50 @@ void pressure_read_recon(int32_t * pressure32, int32_t * temp32, float * height,
 	STATE.pressure = (float)*pressure32;
 	*height = 18.4 * log(STATE.zero_pressure / STATE.pressure);
 	*temp = (float)*temp32 / 100;
-
 }
 
 void pull_recon_data()
 {
+
+
+	TIMES.imu = 0;
+	TIMES.filters = 0;
+	TIMES.bmp280 = 0;
+	TIMES.ds18b20 = 0;
+	TIMES.adxl345 = 0;
+	TIMES.zero = rscs_time_get();
+	TIMES.total = TIMES.zero;
+
+
 	//опрос MPU9255 и пересчет показаний
 	MPU9255_read_imu(TRANSMIT_DATA.aTransmitXYZ, TRANSMIT_DATA.gTransmitXYZ);
 	MPU9255_read_compass(TRANSMIT_DATA.cTransmitXYZ);
-	//printf("compas_error: %d\n", error);
 
 	MPU9255_recalc_accel(TRANSMIT_DATA.aTransmitXYZ, STATE.aRelatedXYZ);
 	MPU9255_recalc_gyro(TRANSMIT_DATA.gTransmitXYZ, STATE.gRelatedXYZ);
 	MPU9255_recalc_compass(TRANSMIT_DATA.cTransmitXYZ, STATE.cRelatedXYZ);
+	TIMES.imu = rscs_time_get() - TIMES.zero;
+	TIMES.total = TIMES.total + TIMES.imu;
+	/*=====================================================================*/
+
+	//Применение фильтра Калмана
+	//apply_KalmanFilter(STATE.aRelatedXYZ, STATE.aRelatedXYZ_prev, ACCEL_KALMAN_GAIN, 3);
+	//apply_KalmanFilter(STATE.gRelatedXYZ, STATE.gRelatedXYZ_prev, GYRO_KALMAN_GAIN, 3);
+	/*=====================================================================*/
+
+	//Фильтрация шума
+	//printf("Gyroscope:\n");
+	//apply_NoiseFilter(STATE.gRelatedXYZ, GYRO_NOISE, 3);
+	//printf("Accelerometer:\n");
+	//apply_NoiseFilter(STATE.aRelatedXYZ, ACCEL_NOISE, 3);
+	TIMES.filters = rscs_time_get() - TIMES.total;
+	TIMES.total = TIMES.total + TIMES.filters;
 	/*=====================================================================*/
 
 	//опрос барометра bmp280
 	pressure_read_recon(&TRANSMIT_DATA.pressure, &TRANSMIT_DATA.temp_bmp280, &STATE.height, &STATE.temp_bmp280);
-
+	TIMES.bmp280 = rscs_time_get() - TIMES.total;
+	TIMES.total = TIMES.total + TIMES.bmp280;
 	/*=====================================================================*/
 
 	//опрос термометра ds18b20
@@ -302,14 +332,17 @@ void pull_recon_data()
 		STATE.temp_ds18b20 = rscs_ds18b20_count_temperature(ds18b20, TRANSMIT_DATA.temp_ds18b20);
 		rscs_ds18b20_start_conversion(ds18b20);
 	}
+	TIMES.ds18b20 = rscs_time_get() - TIMES.total;
+	TIMES.total = TIMES.total + TIMES.ds18b20;
 	/*=====================================================================*/
 
 	//опрос акселерометра ADXL345
-	rscs_e error = rscs_adxl345_GetGXYZ(adxl345, &TRANSMIT_DATA.ADXL_transmit[0], &TRANSMIT_DATA.ADXL_transmit[1], &TRANSMIT_DATA.ADXL_transmit[2],
+	rscs_adxl345_GetGXYZ(adxl345, &TRANSMIT_DATA.ADXL_transmit[0], &TRANSMIT_DATA.ADXL_transmit[1], &TRANSMIT_DATA.ADXL_transmit[2],
 									&STATE.aALT_XYZ[0], &STATE.aALT_XYZ[1], &STATE.aALT_XYZ[2]);
-	printf("adxl_read_error: %d", error);
+	TIMES.adxl345 = rscs_time_get() - TIMES.total;
+	TIMES.total = TIMES.total + TIMES.adxl345;
+	/*=====================================================================*/
 
-	STATE.previousTime = STATE.Time;
 	STATE.Time = rscs_time_get();
 }
 
@@ -329,13 +362,14 @@ void construct_trajectory()
 	//определение угловых скоростей (в ИСК)
 	RSC_to_ISC_recalc(STATE.gRelatedXYZ, STATE.w_XYZ);
 
+	/*
 	//определение углов между осями ИСК и ССК
 	float free_vector[3], solution_vector[3];
 	float components_matrix[3][3];
-	//находим первый столбец матрицы поворота
-	free_vector[0] = STATE.f_XYZ[0][0] + (STATE.f_XYZ_prev[1][0] * STATE.w_XYZ_prev[2] - STATE.f_XYZ_prev[2][0] * STATE.w_XYZ_prev[1]) * dt / 2;
-	free_vector[1] = STATE.f_XYZ[1][0] + (STATE.f_XYZ_prev[2][0] * STATE.w_XYZ_prev[0] - STATE.f_XYZ_prev[0][0] * STATE.w_XYZ_prev[2]) * dt / 2;
-	free_vector[2] = STATE.f_XYZ[2][0] + (STATE.f_XYZ_prev[0][0] * STATE.w_XYZ_prev[1] - STATE.f_XYZ_prev[1][0] * STATE.w_XYZ_prev[0]) * dt / 2;
+	//находим первую строку матрицы поворота
+	free_vector[0] = STATE.f_XYZ[0][0] + (STATE.f_XYZ_prev[0][1] * STATE.w_XYZ_prev[2] - STATE.f_XYZ_prev[0][2] * STATE.w_XYZ_prev[1]) * dt / 2;
+	free_vector[1] = STATE.f_XYZ[0][1] + (STATE.f_XYZ_prev[0][2] * STATE.w_XYZ_prev[0] - STATE.f_XYZ_prev[0][0] * STATE.w_XYZ_prev[2]) * dt / 2;
+	free_vector[2] = STATE.f_XYZ[0][2] + (STATE.f_XYZ_prev[0][0] * STATE.w_XYZ_prev[1] - STATE.f_XYZ_prev[0][1] * STATE.w_XYZ_prev[0]) * dt / 2;
 
 	components_matrix[0][0] =   1;
 	components_matrix[0][1] = - STATE.w_XYZ[2] * dt / 2;
@@ -348,15 +382,16 @@ void construct_trajectory()
 	components_matrix[2][2] =   1;
 
 	solveSystemByKramer(*components_matrix, free_vector, solution_vector);
-	STATE.f_XYZ[0][0] = solution_vector[0];
-	STATE.f_XYZ[1][0] = solution_vector[1];
-	STATE.f_XYZ[2][0] = solution_vector[2];
+	STATE.f_XYZ[0][0] = solution_vector[0] / iauPm(solution_vector);
+	STATE.f_XYZ[0][1] = solution_vector[1] / iauPm(solution_vector);
+	STATE.f_XYZ[0][2] = solution_vector[2] / iauPm(solution_vector);
 
+	//printf("modulus (first row) = %f  ", iauPm(solution_vector));
 
-	//находим второй столбец матрицы поворота
-	free_vector[0] = STATE.f_XYZ[0][1] + (STATE.f_XYZ_prev[1][1] * STATE.w_XYZ_prev[2] - STATE.f_XYZ_prev[2][1] * STATE.w_XYZ_prev[1]) * dt / 2;
-	free_vector[1] = STATE.f_XYZ[1][1] + (STATE.f_XYZ_prev[2][1] * STATE.w_XYZ_prev[0] - STATE.f_XYZ_prev[0][1] * STATE.w_XYZ_prev[2]) * dt / 2;
-	free_vector[2] = STATE.f_XYZ[2][1] + (STATE.f_XYZ_prev[0][1] * STATE.w_XYZ_prev[1] - STATE.f_XYZ_prev[1][1] * STATE.w_XYZ_prev[0]) * dt / 2;
+	//находим вторую строку матрицы поворота
+	free_vector[0] = STATE.f_XYZ[1][0] + (STATE.f_XYZ_prev[1][1] * STATE.w_XYZ_prev[2] - STATE.f_XYZ_prev[1][2] * STATE.w_XYZ_prev[1]) * dt / 2;
+	free_vector[1] = STATE.f_XYZ[1][1] + (STATE.f_XYZ_prev[1][2] * STATE.w_XYZ_prev[0] - STATE.f_XYZ_prev[1][0] * STATE.w_XYZ_prev[2]) * dt / 2;
+	free_vector[2] = STATE.f_XYZ[1][2] + (STATE.f_XYZ_prev[1][0] * STATE.w_XYZ_prev[1] - STATE.f_XYZ_prev[1][1] * STATE.w_XYZ_prev[0]) * dt / 2;
 
 	components_matrix[0][0] =   1;
 	components_matrix[0][1] = - STATE.w_XYZ[2] * dt / 2;
@@ -369,15 +404,29 @@ void construct_trajectory()
 	components_matrix[2][2] =   1;
 
 	solveSystemByKramer(*components_matrix, free_vector, solution_vector);
-	STATE.f_XYZ[0][1] = solution_vector[0];
-	STATE.f_XYZ[1][1] = solution_vector[1];
-	STATE.f_XYZ[2][1] = solution_vector[2];
+	STATE.f_XYZ[1][0] = solution_vector[0] / iauPm(solution_vector);
+	STATE.f_XYZ[1][1] = solution_vector[1] / iauPm(solution_vector);
+	STATE.f_XYZ[1][2] = solution_vector[2] / iauPm(solution_vector);
+	*/
 
+	//printf("f_XYZ_prev[0] = %f,   %f,   %f\n", STATE.f_XYZ_prev[0][0], STATE.f_XYZ_prev[0][1], STATE.f_XYZ_prev[0][2]);
+	//printf("w_XYZ_prev    = %f,   %f,   %f\n", STATE.w_XYZ_prev[0]   , STATE.w_XYZ_prev[1]   , STATE.w_XYZ_prev[2]   );
+	//printf("dt = %f\n", (float)(STATE.Time - STATE.previousTime) / 1000);
+	solveByRungeKutta((float)(STATE.Time - STATE.previousTime) / 1000, STATE.f_XYZ_prev[0], STATE.f_XYZ[0]);
+	solveByRungeKutta((float)(STATE.Time - STATE.previousTime) / 1000, STATE.f_XYZ_prev[1], STATE.f_XYZ[1]);
 
-	//находим третий столбец матрицы поворота из условия ортогональности векторов
-	STATE.f_XYZ[2][2] =  STATE.f_XYZ[0][0] * STATE.f_XYZ[1][1] - STATE.f_XYZ[1][0] * STATE.f_XYZ[0][1];
-	STATE.f_XYZ[0][2] = (STATE.f_XYZ[0][0] * STATE.f_XYZ[2][0] + STATE.f_XYZ[0][1] * STATE.f_XYZ[2][1]) / STATE.f_XYZ[2][2];
-	STATE.f_XYZ[1][2] = (STATE.f_XYZ[1][0] * STATE.f_XYZ[2][0] + STATE.f_XYZ[1][1] * STATE.f_XYZ[2][1]) / STATE.f_XYZ[2][2];
+	//printf("SOLVED_BY_RUNGE-KUTTA\n");
+	//printf("first row) = %f,   %f,   %f\n", STATE.f_XYZ[0][0], STATE.f_XYZ[0][1], STATE.f_XYZ[0][2]);
+	//printf("first row) = %f,   %f,   %f\n", STATE.f_XYZ[1][0], STATE.f_XYZ[1][1], STATE.f_XYZ[1][2]);
+	//printf("\n");
+	//находим третью строку матрицы поворота из условия ортогональности векторов
+	iauPxp(STATE.f_XYZ[0], STATE.f_XYZ[1], STATE.f_XYZ[2]);
+
+	//printf("modulus (third row) = %f\n", sqrt(pow(STATE.f_XYZ[2][2], 2) + pow(STATE.f_XYZ[2][0], 2) + pow(STATE.f_XYZ[2][1], 2)));
+
+	//printf("scalar dot xy = %f  ", iauPdp(STATE.f_XYZ[0], STATE.f_XYZ[1]));
+	//printf("scalar dot xz = %f  ", iauPdp(STATE.f_XYZ[0], STATE.f_XYZ[2]));
+	//printf("scalar dot yz = %f\n", iauPdp(STATE.f_XYZ[2], STATE.f_XYZ[1]));
 
 	set_cos_to_1(&STATE.f_XYZ[0][0]);
 	set_cos_to_1(&STATE.f_XYZ[0][1]);
@@ -389,9 +438,13 @@ void construct_trajectory()
 	set_cos_to_1(&STATE.f_XYZ[2][1]);
 	set_cos_to_1(&STATE.f_XYZ[2][2]);
 
-	//определение ускорений
-	RSC_to_ISC_recalc(STATE.aRelatedXYZ, STATE.a_XYZ);
-	STATE.a_XYZ[2] = STATE.a_XYZ[2] + G_VECT;
+	//printf("SOLVED_BY_KRAMER\n");
+	//printf("%f,   %f,   %f\n", STATE.f_XYZ[0][0], STATE.f_XYZ[0][1], STATE.f_XYZ[0][2]);
+	//printf("%f,   %f,   %f\n", STATE.f_XYZ[1][0], STATE.f_XYZ[1][1], STATE.f_XYZ[1][2]);
+	//printf("%f,   %f,   %f\n\n", STATE.f_XYZ[2][0], STATE.f_XYZ[2][1], STATE.f_XYZ[2][2]);
+
+	//определение ускорений	RSC_to_ISC_recalc(STATE.aRelatedXYZ, STATE.a_XYZ);
+	//STATE.a_XYZ[2] = STATE.a_XYZ[2] - G_VECT;
 
 	//определение скоростей
 	STATE.v_XYZ[0] = STATE.v_XYZ[0] + (STATE.a_XYZ_prev[0] + STATE.a_XYZ[0]) * dt / 2;
@@ -409,6 +462,8 @@ void construct_trajectory()
 		STATE.a_XYZ_prev[i] = STATE.a_XYZ[i];
 		STATE.v_XYZ_prev[i] = STATE.v_XYZ[i];
 		STATE.w_XYZ_prev[i] = STATE.w_XYZ[i];
+		STATE.aRelatedXYZ_prev[i] = STATE.aRelatedXYZ[i];
+		STATE.gRelatedXYZ_prev[i] = STATE.gRelatedXYZ[i];
 		for (int j = 0; j < 3; j++)
 		{
 			STATE.f_XYZ_prev[i][j] = STATE.f_XYZ[i][j];
@@ -417,6 +472,20 @@ void construct_trajectory()
 	STATE.previousTime = STATE.Time;
 }
 
+void apply_KalmanFilter(float * sensor_data, const float * sensor_data_prev, float Kalman_gain, int data_array_size)
+{
+	for (int i = 0; i < data_array_size; i++)
+		sensor_data[i] = Kalman_gain * sensor_data[i] + (1 - Kalman_gain) * sensor_data_prev[i];
+}
+
+void apply_NoiseFilter(float * sensor_data, float noise, int data_array_size)
+{
+	for (int i = 0; i < data_array_size; i++)
+	{
+		if (fabsf(sensor_data[i]) < noise)
+				sensor_data[i] = 0;
+	}
+}
 
 void solveSystemByKramer (float * Matrix, float * vector, float * solution_vect)
 {
@@ -468,6 +537,60 @@ float getDeterminant (float * Matrix)
 		det += *(Matrix + i) * (*(Matrix + 3 + j) * *(Matrix + 6 + k) - *(Matrix + 3 + k) * *(Matrix + 6 + j));
 	}
 	return det;
+}
+
+inline float functionForRK(uint8_t i, float * y)
+{
+	switch (i) {
+		case 0:
+			//printf("y = %f, %f, %f\n", y[0], y[1], y[2]);
+			return y[1] * STATE.w_XYZ_prev[2] - y[2] * STATE.w_XYZ_prev[1];
+		case 1:
+			return y[2] * STATE.w_XYZ_prev[0] - y[0] * STATE.w_XYZ_prev[2];
+		case 2:
+			return y[0] * STATE.w_XYZ_prev[1] - y[1] * STATE.w_XYZ_prev[0];
+	}
+	return 0;
+}
+
+void solveByRungeKutta(float dt, float * y, float * y_new)
+{
+	float k1[3], k2[3], k3[3], k4[3], y1[3], y2[3], y3[3];
+	//printf("dt = %f\n", dt);
+
+	for (int i = 0; i < 3; i++)
+		k1[i] = functionForRK(i, y);
+	//printf("k1 = %f,   %f,   %f\n", k1[0], k1[1], k1[2]);
+
+	for (int i = 0; i < 3; i++)
+		y1[i] = y[i] + (float)(k1[i] * dt / 2);
+	//printf("y1 = %f,   %f,   %f\n", y1[0], y1[1], y1[2]);
+
+	for (int i = 0; i < 3; i++)
+		k2[i] = functionForRK(i, y1);
+	//printf("k2 = %f,   %f,   %f\n", k2[0], k2[1], k2[2]);
+
+	for (int i = 0; i < 3; i++)
+		y2[i] = y[i] + (float)(k2[i] * dt / 2);
+	//printf("y2 = %f,   %f,   %f\n", y2[0], y2[1], y2[2]);
+
+	for (int i = 0; i < 3; i++)
+		k3[i] = functionForRK(i, y2);
+	//printf("k3 = %f,   %f,   %f\n", k3[0], k3[1], k3[2]);
+
+	for (int i = 0; i < 3; i++)
+		y3[i] = y[i] + (float)(k3[i] * dt);
+	//printf("y3 = %f,   %f,   %f\n", y3[0], y3[1], y3[2]);
+
+	for (int i = 0; i < 3; i++)
+		k4[i] = functionForRK(i, y3);
+	//printf("k4 = %f,   %f,   %f\n", k4[0], k4[1], k4[2]);
+
+	for (int i = 0; i < 3; i++)
+		y_new[i] = y[i] + (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]) *  dt / 6;
+	//printf("delta = %f,    %f,    %f\n\n", 	(k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]) *  dt / 6,
+	//											(k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]) *  dt / 6,
+	//											(k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]) *  dt / 6);
 }
 
 void getTranslations (float * translations)
