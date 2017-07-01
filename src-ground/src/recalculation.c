@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <math.h>
+#include <sofa.h>
 
 #include "package_struct.h"
 #include "recalculation.h"
@@ -50,55 +51,46 @@ void print_calibration_values()
 	printf("12: %X\n", calvals.T3);
 }
 
-void recalc_accel(int16_t * raw_accel_XYZ, float * accel_XYZ)
+void recalc_accel(const int16_t * raw_accel_XYZ, float * accel_XYZ)
 {
-	int16_t *first_raw_accel_XYZ = (int16_t*)raw_accel_XYZ;
-	float *first_accel_XYZ = (float*)accel_XYZ;
-
-	for (int i = 0; i < 3; i++)
-	{
-		first_accel_XYZ[i] = (float)(first_raw_accel_XYZ[i]) * ACCEL_SCALE_FACTOR * ACCEL_RANGE;
-	}
-
+	accel_XYZ[0] = (float)(raw_accel_XYZ[0]) * MPU9255_ACCEL_SCALE_FACTOR * pow(2, ACCEL_RANGE) * X_ACCEL_KOEFF;
+	accel_XYZ[1] = (float)(raw_accel_XYZ[1]) * MPU9255_ACCEL_SCALE_FACTOR * pow(2, ACCEL_RANGE) * Y_ACCEL_KOEFF;
+	accel_XYZ[2] = (float)(raw_accel_XYZ[2]) * MPU9255_ACCEL_SCALE_FACTOR * pow(2, ACCEL_RANGE) * Z_ACCEL_KOEFF;
 }
 
 
-void recalc_gyro(int16_t * raw_gyro_XYZ, float * gyro_XYZ)
+void recalc_gyro(const int16_t * raw_gyro_XYZ, float * gyro_XYZ)
 {
-	int16_t *first_raw_gyro_XYZ = (int16_t*)raw_gyro_XYZ;
-	float *first_gyro_XYZ = (float*)gyro_XYZ;
-
 	for (int i = 0; i < 3; i++)
-		{
-			first_gyro_XYZ[i] = (float)(first_raw_gyro_XYZ[i]) * ACCEL_SCALE_FACTOR * ACCEL_RANGE;
-		}
-
+		gyro_XYZ[i] = (float)(raw_gyro_XYZ[i]) * MPU9255_GYRO_SCALE_FACTOR * pow(2, GYRO_RANGE) * Z_GYRO_KOEFF;
 }
 
-
-void recalc_compass(int16_t * raw_compass_XYZ, float * compass_XYZ)
+void recalc_compass(const int16_t * raw_compass_XYZ, float * compass_XYZ)
 {
-	float x = 0, y = 0, z = 0;
-	int16_t *first_raw_compass_XYZ = (int16_t*)raw_compass_XYZ;
-	float *first_compass_XYZ = (float*)compass_XYZ;
+	/*float x, y, z;
+
+	float length = sqrt(pow(raw_compass_XYZ[0], 2) + pow(raw_compass_XYZ[1], 2) + pow(raw_compass_XYZ[2], 2));
+
+	x = (float)raw_compass_XYZ[1] / length;
+	y = (float)raw_compass_XYZ[0] / length;
+	z = - (float)raw_compass_XYZ[2] / length;
 
 
-	float length = sqrt(pow(*(first_raw_compass_XYZ + 0), 2) + pow(*(first_raw_compass_XYZ + 1), 2) + pow(*(first_raw_compass_XYZ + 2), 2));
+	compass_XYZ[0] = x;
+	compass_XYZ[1] = y;
+	compass_XYZ[2] = z;*/
+	float raw_data[3] = {(float)raw_compass_XYZ[0], (float)raw_compass_XYZ[1], (float)raw_compass_XYZ[2]};
+	float offset_vector[3] = {X_COMPAS_OFFSET, Y_COMPAS_OFFSET, Z_COMPAS_OFFSET};
+	float transform_matrix[3][3] =	{	{XX_COMPAS_TRANSFORM_MATIX, XY_COMPAS_TRANSFORM_MATIX, XZ_COMPAS_TRANSFORM_MATIX},
+										{XY_COMPAS_TRANSFORM_MATIX, YY_COMPAS_TRANSFORM_MATIX, YZ_COMPAS_TRANSFORM_MATIX},
+										{XZ_COMPAS_TRANSFORM_MATIX, YZ_COMPAS_TRANSFORM_MATIX, ZZ_COMPAS_TRANSFORM_MATIX}};
 
-	if (length > 0)
-	{
-		x = ((float)*(first_raw_compass_XYZ + 1) / length);
-		y = ((float)*(first_raw_compass_XYZ + 0)/ length);
-		z = - ((float)*(first_raw_compass_XYZ + 2)/ length);
-	}
-	else {
-		x = 0; y = 0; z = 0;
-	}
-
-
-	first_compass_XYZ[0] = x;
-	first_compass_XYZ[1] = y;
-	first_compass_XYZ[2] = z;
+	//printf("raw_compass_XYZ = %d, %d, %d\n", raw_compass_XYZ[0], raw_compass_XYZ[1], raw_compass_XYZ[2]);
+	//printf("raw_compass_XYZ = %f, %f, %f\n", (float)raw_compass_XYZ[0], (float)raw_compass_XYZ[1], (float)raw_compass_XYZ[2]);
+	iauPmp(raw_data, offset_vector, compass_XYZ);
+	//printf("offset_compass_XYZ = %f, %f, %f\n", compass_XYZ[0], compass_XYZ[1], compass_XYZ[2]);
+	iauRxp(transform_matrix, compass_XYZ, compass_XYZ);
+	//printf("transform_compass_XYZ = %f, %f, %f\n\n", compass_XYZ[0], compass_XYZ[1], compass_XYZ[2]);
 }
 
 float recalc_ds18b20Temp(uint16_t raw_temp)
@@ -115,6 +107,13 @@ float recalc_bmp280Temp(int32_t rawtemp)
 float recalc_bmp280Pressure(int32_t rawpress)
 {
 	return (float)rawpress;
+}
+
+void recalc_adxl345(int16_t * raw_adxl345, float * adxl345)
+{
+	adxl345[0] = raw_adxl345[0] * 0.004 * 9.81;
+	adxl345[1] = raw_adxl345[1] * 0.004 * 9.81;
+	adxl345[2] = raw_adxl345[2] * 0.004 * 9.81;
 }
 
 /*float recalc_bmp280Temp(int32_t rawtemp)

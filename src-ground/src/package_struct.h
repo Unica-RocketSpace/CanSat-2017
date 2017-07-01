@@ -26,6 +26,8 @@ typedef struct
 	uint16_t temp_ds18b20;
 	int32_t temp_bmp280;
 
+	int16_t a_adxl345[3];
+
 	uint16_t aXYZ[3];	//accelerometer raw data
 	uint16_t gXYZ[3];	//gyro raw data
 	uint16_t cXYZ[3];	//compass raw data

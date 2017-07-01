@@ -19,7 +19,8 @@
 #define STATE 		(1 << 7)
 #define TIME 		(1 << 8)
 #define CSV			(1 << 9)
-#define ALL			NUMBER | P_BMP280 | T_BMP280 | T_DS18B20 | ACCEL | GYRO | COMPASS | STATE | TIME
+#define ADXL		(1 << 10)
+#define ALL			NUMBER | P_BMP280 | T_BMP280 | T_DS18B20 | ACCEL | GYRO | COMPASS | STATE | TIME | ADXL
 
 
 typedef struct
@@ -27,12 +28,15 @@ typedef struct
 	float pressure;
 	float temp_ds18b20;
 	float temp_bmp280;
+	float a_adxl345[3];
 	float accel_XYZ[3];
 	float gyro_XYZ[3];
 	float compass_XYZ[3];
 	float time;
 
 }global_data;
+
+extern global_data DATA;
 
 void content_FPrint(FILE * file_, package * pack, global_data * data, uint16_t flag);
 

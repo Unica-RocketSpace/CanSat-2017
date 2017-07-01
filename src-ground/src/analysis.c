@@ -66,6 +66,13 @@ void content_FPrint(FILE * file_, package * pack, global_data * data, uint16_t f
 		else
 			fprintf(file_, "Cos (B,OXYZ): %f  %f  %f\n",  data->compass_XYZ[0], data->compass_XYZ[1], data->compass_XYZ[2]);
 	}
+	if (flag & ADXL)
+	{
+		if (flag & CSV)
+			fprintf(file_, "%f,%f,%f", data->a_adxl345[0], data->a_adxl345[1], data->a_adxl345[2]);
+		else
+			fprintf(file_, "Ускорения с ADXL345: %f м/с^2  %f м/с^2  %f м/с^2\n", data->a_adxl345[0], data->a_adxl345[1], data->a_adxl345[2]);
+	}
 	if (flag & STATE)
 	{
 		if (flag & CSV)
@@ -73,7 +80,7 @@ void content_FPrint(FILE * file_, package * pack, global_data * data, uint16_t f
 		else
 			fprintf(file_, "Состояние: %d\n", pack->state);
 	}
-	if (flag & ACCEL)
+	if (flag & TIME)
 	{
 		if (flag & CSV)
 			fprintf(file_, "%f\n", data->time);
@@ -82,7 +89,6 @@ void content_FPrint(FILE * file_, package * pack, global_data * data, uint16_t f
 			fprintf(file_, "ВРЕМЯ ПЕРЕДАЧИ: %f c\n", data->time);
 			fprintf(file_, "============================\n");
 		}
-
 	}
 }
 

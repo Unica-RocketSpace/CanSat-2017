@@ -10,9 +10,11 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sofa.h>
 
 #include "package_struct.h"
 #include "recalculation.h"
+#include "kinematic_unit.h"
 #include "analysis.h"
 
 
@@ -83,6 +85,63 @@ void make_fake_data(const char * filepath)
 	fclose(file);
 }
 
+void printf_state(FILE * file_, long package_number)
+{
+	fprintf(file_, "%ld, ", package_number);
+	fprintf(file_, "%f, ", (float)DEVICE_STATE.Time / 1000);
+	fprintf(file_, "%f, %f, %f, ", DEVICE_STATE.aRelatedXYZ[0], DEVICE_STATE.aRelatedXYZ[1], DEVICE_STATE.aRelatedXYZ[2]);
+	fprintf(file_, "%f, ", iauPm(DEVICE_STATE.aRelatedXYZ));
+	fprintf(file_, "%f, %f, %f, ", DEVICE_STATE.gRelatedXYZ[0], DEVICE_STATE.gRelatedXYZ[1], DEVICE_STATE.gRelatedXYZ[2]);
+	fprintf(file_, "%f, ", iauPm(DEVICE_STATE.gRelatedXYZ));
+	fprintf(file_, "%f, %f, %f, ", DEVICE_STATE.a_XYZ[0], DEVICE_STATE.a_XYZ[1], DEVICE_STATE.a_XYZ[2]);
+	fprintf(file_, "%f, ", iauPm(DEVICE_STATE.a_XYZ));
+	fprintf(file_, "%f, %f, %f, ", DEVICE_STATE.v_XYZ[0], DEVICE_STATE.v_XYZ[1], DEVICE_STATE.v_XYZ[2]);
+	fprintf(file_, "%f, ", iauPm(DEVICE_STATE.v_XYZ));
+	fprintf(file_, "%f, %f, %f, ", DEVICE_STATE.s_XYZ[0], DEVICE_STATE.s_XYZ[1], DEVICE_STATE.s_XYZ[2]);
+	fprintf(file_, "%f, ", iauPm(DEVICE_STATE.s_XYZ));
+	fprintf(file_, "%f, %f, %f, ", DEVICE_STATE.w_XYZ[0], DEVICE_STATE.w_XYZ[1], DEVICE_STATE.w_XYZ[2]);
+	fprintf(file_, "%f, ", iauPm(DEVICE_STATE.w_XYZ));
+	fprintf(file_, "%f, %f, %f, %f, %f, %f, %f, %f, %f\n",	DEVICE_STATE.f_XYZ[0][0],
+													DEVICE_STATE.f_XYZ[0][1],
+													DEVICE_STATE.f_XYZ[0][2],
+													DEVICE_STATE.f_XYZ[1][0],
+													DEVICE_STATE.f_XYZ[1][1],
+													DEVICE_STATE.f_XYZ[1][2],
+													DEVICE_STATE.f_XYZ[2][0],
+													DEVICE_STATE.f_XYZ[2][1],
+													DEVICE_STATE.f_XYZ[2][2]);
+}
+void printf_first_string_state(FILE * file_)
+{
+	fprintf(file_, "package, ");
+	fprintf(file_, "time, ");
+	fprintf(file_, "Accelerometer-X, ");
+	fprintf(file_, "Accelerometer-Y, ");
+	fprintf(file_, "Accelerometer-Z, ");
+	fprintf(file_, "Accelerometer, ");
+	fprintf(file_, "Gyroscope-X, ");
+	fprintf(file_, "Gyroscope-Y, ");
+	fprintf(file_, "Gyroscope-Z, ");
+	fprintf(file_, "Gyroscope, ");
+	fprintf(file_, "Accelerations-X, ");
+	fprintf(file_, "Accelerations-Y, ");
+	fprintf(file_, "Accelerations-Z, ");
+	fprintf(file_, "Accelerations, ");
+	fprintf(file_, "Velocities-X, ");
+	fprintf(file_, "Velocities-Y, ");
+	fprintf(file_, "Velocities-Z, ");
+	fprintf(file_, "Velocities, ");
+	fprintf(file_, "Translations-X, ");
+	fprintf(file_, "Translations-Y, ");
+	fprintf(file_, "Translations-Z, ");
+	fprintf(file_, "Translations, ");
+	fprintf(file_, "Angle velocities-X, ");
+	fprintf(file_, "Angle velocities-Y, ");
+	fprintf(file_, "Angle velocities-Z, ");
+	fprintf(file_, "Angle velocities, ");
+	fprintf(file_, "Rotation Matrix\n");
+}
+
 
 int main()
 {
@@ -114,32 +173,57 @@ int main()
 	fread(pack_uint, pointer, 1, f_raw);
 
 
+	//Инициализация структуры STATE
+	kinematicInit();
+	printf_first_string_state(f_ready_csv);
+
 	int i;
 	for (i = 0; i < pointer; i++)
 	{
-		if (pack_uint[i] == 0xFF)						//если находит маркер структуры (0xFF), начинает анализ пакета
+		if (pack_uint[i] == 0xFF && pack_uint[i + 1] == 0xFF)	//если находит маркер структуры (0xFF), начинает анализ пакета
 		{
 			package * pack = (package*)(pack_uint + i);
 			if (check_package(pack))
 			{
-				global_data DATA =
+				/*global_data DATA =
 				{
 						.pressure = recalc_bmp280Pressure(pack->pressure),
 						.temp_bmp280 = recalc_bmp280Temp(pack->temp_bmp280),
 						.temp_ds18b20 = recalc_ds18b20Temp(pack->temp_ds18b20),
 						.time = (float)pack->time / 1000
 				};
+				recalc_adxl345(pack->a_adxl345, DATA.a_adxl345);
 				recalc_accel((int16_t*)(pack->aXYZ), DATA.accel_XYZ);
 				recalc_gyro((int16_t*)(pack->gXYZ), DATA.gyro_XYZ);
 				recalc_compass((int16_t*)(pack->cXYZ), DATA.compass_XYZ);
+				*/
 
-				content_FPrint(stdout, pack, &DATA, ALL);
-				content_FPrint(f_ready_txt, pack, &DATA, ALL);
-				content_FPrint(f_ready_csv, pack, &DATA, ALL | CSV);
+				printf("Пакет %d записан \n", pack->number);
+				/*---------------------------------------------------------------------*/
+				DEVICE_STATE.pressure = recalc_bmp280Pressure(pack->pressure);
+				DEVICE_STATE.temp_bmp280 = recalc_bmp280Temp(pack->temp_bmp280);
+				DEVICE_STATE.temp_ds18b20 = recalc_ds18b20Temp(pack->temp_ds18b20);
+				DEVICE_STATE.Time = pack->time;
+				recalc_adxl345(pack->a_adxl345, DEVICE_STATE.aALT_XYZ);
+				recalc_accel((int16_t*)(pack->aXYZ), DEVICE_STATE.aRelatedXYZ);
+				recalc_gyro((int16_t*)(pack->gXYZ), DEVICE_STATE.gRelatedXYZ);
+				recalc_compass((int16_t*)(pack->cXYZ), DEVICE_STATE.cRelatedXYZ);
+
+				//Фильтрация шума
+				apply_NoiseFilter(DEVICE_STATE.gRelatedXYZ, GYRO_NOISE, 3);
+				apply_NoiseFilter(DEVICE_STATE.aRelatedXYZ, ACCEL_NOISE, 3);
+
+				construct_trajectory();
+				printf_state(f_ready_csv, pack->number);
+				/*---------------------------------------------------------------------*/
+
+				//content_FPrint(stdout, pack, &DATA, ALL);
+				//content_FPrint(f_ready_txt, pack, &DATA, ALL);
+				//content_FPrint(f_ready_csv, pack, &DATA, ALL | CSV);
 
 			}
 			else
-				printf("Пакет %d не прошел проверку \n", i);
+				printf("Пакет не прошел проверку \n");
 		}
 
 
