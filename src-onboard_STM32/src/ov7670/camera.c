@@ -6,14 +6,15 @@
 #include "diag/Trace.h"
 
 static uint8_t _dummyBuffer[10];
-static volatile size_t _hrefCntLeft = 0;
+static volatile ssize_t _hrefCntLeft = 0;
+static volatile ssize_t _hrefSkipLeft = 0;
 
 static EXTI_InitTypeDef _extiCfg =
 {
 	.EXTI_Line = EXTI_Line11,
 	.EXTI_Mode = EXTI_Mode_Interrupt,
 	.EXTI_Trigger = EXTI_Trigger_Falling,
-	// .EXTI_LineCmd = ENABLE, // настраивается потом
+	.EXTI_LineCmd = ENABLE,
 };
 
 int camera_init()
@@ -39,17 +40,20 @@ int camera_init()
 	// чтение из фифо разрешаем на постоянку, так как оно мало на что влияет и управляется строго клоком
 	GPIOB->BRR |= VIDEO_OE;
 
-	// Разрешаем на NVICe прерывания для подсчета HREF-ов
-	// на самом EXTI прерывания пока запрещены, поэтому работать они не будут
+	// Настраиваем прерывания EXTI на подсчет HREF
+	EXTI_Init(&_extiCfg);
+
+	// Настраиваем на NVIC прерывания EXTI
 	NVIC_InitTypeDef NVIC_init;
 	NVIC_init.NVIC_IRQChannel = EXTI15_10_IRQn;
-	NVIC_init.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_init.NVIC_IRQChannelCmd = DISABLE; // потом включим
 	NVIC_init.NVIC_IRQChannelPreemptionPriority = 0; // высший приоритет!
 	NVIC_init.NVIC_IRQChannelSubPriority = 0;
 	NVIC_Init(&NVIC_init);
 
 	tdcs_init();
 
+	/*
 	int ret;
 	struct ov7670_config cfg;
 	cfg.clock_speed = 12;
@@ -59,6 +63,9 @@ int camera_init()
 		trace_printf("cam init_fails: %d\n", ret);
 
 	return ret;
+	*/
+
+	return 0;
 }
 
 
@@ -81,17 +88,15 @@ void camera_fifo_reset_write()
 }
 
 
-void camera_fifo_start_capture(size_t href_count)
+void camera_fifo_start_capture(ssize_t href_skip, ssize_t href_count)
 {
 	// Записываем сколько строк нам нужно загнать в фифо
 	_hrefCntLeft = href_count;
-
-	// разрешаем запись в фифо
-	GPIOB->BSRR |=  VIDEO_WE;
+	// И сколько пропустить перед этим
+	_hrefSkipLeft = href_skip;
 
 	// разрешаем прерывания для подсчета HREF-ов
-	_extiCfg.EXTI_LineCmd = ENABLE;
-	EXTI_Init(&_extiCfg);
+	NVIC_EnableIRQ(EXTI15_10_IRQn);
 }
 
 
@@ -121,12 +126,23 @@ size_t camera_fifo_lines_left()
 void EXTI15_10_IRQHandler()
 {
 	EXTI_ClearITPendingBit(EXTI_Line11);
+
+	if (_hrefSkipLeft >= 0)
+	{
+		_hrefSkipLeft--;
+		if (_hrefSkipLeft == 0)
+		{
+			// разрешаем запись в фифо
+			GPIOB->BSRR |=  VIDEO_WE;
+			return;
+		}
+	}
+
 	_hrefCntLeft--;
 	if (0 == _hrefCntLeft)
 	{
 		GPIOB->BRR |= VIDEO_WE; // запрещаем запись в фифо
 		// запрещаем прерывания
-		_extiCfg.EXTI_LineCmd = DISABLE;
-		EXTI_Init(&_extiCfg);
+		NVIC_DisableIRQ(EXTI15_10_IRQn);
 	}
 }

@@ -16,9 +16,13 @@
 #include "dump.h"
 
 
-#define BUFFER_SIZE			(1280*4)
-#define BUFFER_CNT 			(2)
-#define BUFFER_READ_COUNT	(640*300*2/BUFFER_SIZE)		//640*300*2/BUFFER_SIZE
+#define LINES_TO_SAVE_OFFSET	(90)
+#define LINES_TO_SAVE			(300)
+#define BUFFER_SIZE				(1280*12)
+#define BUFFER_CNT 				(1)
+
+#define LINES_PER_BUFFER		(BUFFER_SIZE/640/2)		//640*300*2/BUFFER_SIZE
+
 
 typedef enum
 {
@@ -64,11 +68,7 @@ void sd_task(void * args)
 	(void)args;
 
 	dump_init(&stream_file, filename);
-	//Пишем на SD флаг начала кадра
-	dump(&stream_file, &OV7670_FLAG, 8);
 
-	//_emptyBufferQ = xQueueCreate(BUFFER_CNT, sizeof(uint8_t*));
-	//_fullBufferQ = xQueueCreate(BUFFER_CNT, sizeof(uint8_t*));
 	_emptyBufferQ = xQueueCreateStatic(BUFFER_CNT, sizeof(uint8_t*), _emptyBufferQ_data,
 			&_emptyBufferQ_ob);
 
@@ -81,23 +81,26 @@ void sd_task(void * args)
 		xQueueSendToBack(_emptyBufferQ, &buffPtr, portMAX_DELAY);
 	}
 
-	//xTaskCreate(cam_task, "cam", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
 	xTaskCreateStatic(cam_task, "cam", sizeof(_cam_task_stack)/sizeof(_cam_task_stack[0]), NULL, 1,
 			_cam_task_stack, &_cam_taskb_ob);
 
+
+	dump(&stream_file, &OV7670_FLAG, 8);
+	size_t lines_written = 0;
 	while(1)
 	{
-		int dump_buffers_cnt = 0;
-		dump_buffers_cnt++;
 		uint8_t * buffer;
+		//Пишем на SD флаг начала кадра
 		xQueueReceive(_fullBufferQ, &buffer, portMAX_DELAY);
-		dump(&stream_file, buffer, sizeof(buffer));
+		dump(&stream_file, buffer, BUFFER_SIZE);
 		xQueueSend(_emptyBufferQ, &buffer, portMAX_DELAY);
-
-
-		if (dump_buffers_cnt == 50)
+		lines_written += LINES_PER_BUFFER;
+		if (lines_written == LINES_TO_SAVE)
+		{
 			dump(&stream_file, &OV7670_FLAG, 8);
-
+			blink_led();
+			lines_written = 0;
+		}
 	}
 }
 
@@ -109,19 +112,24 @@ void cam_task(void* args)
 	camera_init();
 
 again:
-	taskENTER_CRITICAL();
+	//taskENTER_CRITICAL();
 	camera_wait_vsync();
-	taskEXIT_CRITICAL();
+	//taskEXIT_CRITICAL();
 	camera_fifo_reset_write();
-	camera_fifo_start_capture(BUFFER_READ_COUNT);
+	camera_fifo_start_capture(LINES_TO_SAVE_OFFSET, LINES_TO_SAVE);
 
 	// и читаем и пишем на флешку
 	camera_fifo_reset_read();
 
+
 	size_t buff_cnt = 0;
-	while (buff_cnt < BUFFER_READ_COUNT)
+	while (buff_cnt*LINES_PER_BUFFER < LINES_TO_SAVE)
 	{
-		if (camera_fifo_lines_left() <= BUFFER_READ_COUNT - 2)
+		// ждем, пока в FIFO появится достаточно данных
+		while (LINES_TO_SAVE - camera_fifo_lines_left() < buff_cnt*LINES_PER_BUFFER) {}
+
+		// Если в фифо уже накопилось данных хотябы на один буфер
+		// начинаем выгрузку на SD карту
 		{
 			uint8_t * buffer;
 			xQueueReceive(_emptyBufferQ, &buffer, portMAX_DELAY);
@@ -132,38 +140,17 @@ again:
 		}
 	}
 
-	blink_led();
-
 	// продолжаем
 	goto again;
 }
 
+
 int main(int argc, char* argv[])
 {
 	(void)argc, (void)argv;
-
-	camera_init();
-	//ov7670_sccb_init();
-
-
-
-
-
-	return 0;
-}
-
-
-int main_x(int argc, char* argv[])
-{
-	(void)argc, (void)argv;
 	blink_led_init();
-
-	//xTaskCreate(sd_task, "sd", 3*configMINIMAL_STACK_SIZE, NULL, 2, NULL);
-	xTaskCreateStatic(sd_task, "sd", sizeof(_sd_task_stack)/sizeof(_sd_task_stack[0]),
-			NULL, 1, _sd_task_stack, &_sd_task_ob);
-
-
-	vTaskStartScheduler();
+	//xTaskCreateStatic(sd_task, "sd", sizeof(_sd_task_stack)/sizeof(_sd_task_stack[0]), NULL, 2, _sd_task_stack, &_sd_task_ob);
+	//vTaskStartScheduler();
 
 	return 0;
 }

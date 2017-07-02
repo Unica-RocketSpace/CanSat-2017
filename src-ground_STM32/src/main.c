@@ -134,9 +134,12 @@ int createFrame(uint16_t * stream, int length, int pointer, const char * path_fr
 					green = round(Y - 0.34414 * (Cb - 128) - 0.71414 * (Cr - 128));
 					blue = round(Y + 1.772 * (Cb - 128));
 
-					if (red > 255)	red = 255;		if (red < 0)	red = 0;
-					if (green > 255)green = 255;	if (green < 0)	green = 0;
-					if (blue > 255)	blue = 255;		if (blue < 0)	blue = 0;
+					if (red > 255)	red = 255;
+					if (red < 0)	red = 0;
+					if (green > 255)green = 255;
+					if (green < 0)	green = 0;
+					if (blue > 255)	blue = 255;
+					if (blue < 0)	blue = 0;
 				}
 
 				else if (!strcmp(mode, mono_mode))
@@ -182,7 +185,7 @@ return -1;
 
 int get_sizeof_number(int number)
 {
-	char dummy[] = "";
+	char dummy[100];
 	sprintf(dummy, "%d", number);
 	int size = strlen(dummy);
 
@@ -225,11 +228,13 @@ void set_number_()
 //MAIN*****************
 int main()
 {
-	char 		path_folder[]	= "/home/developer/Рабочий стол/Frames/frame-";
+	//char 		path_folder[]	= "/home/developer/Рабочий стол/Frames/frame-";
+	const char path_folder[] = "/home/snork/Desktop/unica/";
 	const char	extension[]		= ".ppm";
 
 	//char default_path[] = "/media/developer/SDHC/VIDEO-";
-	char default_path[] = "/media/developer/SDHC/VIDEO-";
+	//char default_path[] = "/media/developer/SDHC/VIDEO-";
+	const char default_path[] = "/run/media/snork/4D2E-16F9/VIDEO-";
 	char video_extension[] = ".BIN";
 	char path_stream[] = "";
 

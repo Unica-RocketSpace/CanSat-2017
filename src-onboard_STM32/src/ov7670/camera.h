@@ -10,13 +10,14 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 int camera_init();
 
 void camera_wait_vsync();
 
 void camera_fifo_reset_write();
-void camera_fifo_start_capture(size_t href_count);
+void camera_fifo_start_capture(ssize_t href_skip, ssize_t href_count);
 size_t camera_fifo_lines_left();
 
 void camera_fifo_reset_read();
