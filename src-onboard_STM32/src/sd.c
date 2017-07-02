@@ -6,10 +6,6 @@
  */
 
 #include "sd.h"
-//#include "../include/sd.h"
-
-#include <FreeRTOS.h>
-#include <task.h>
 
 #include <string.h>
 #include <errno.h>
@@ -80,15 +76,12 @@ inline static void _spi_wait(void)
    bool notYet = true;
    while (notYet)
    {
-      __disable_irq();
+      //__disable_irq();
       if (SD_SPI->SR & SPI_I2S_FLAG_RXNE)
          notYet = false;
-      __enable_irq();
+      //__enable_irq();
    }
 }
-
-
- static volatile TaskHandle_t _thisTaskHandle = NULL;
 
 
 // Запуск DMA для обмена блоками данных с SD картой по SPI (считай асинхронная операция)
@@ -132,52 +125,22 @@ inline static void _sd_dma_transfer(void * target, sd_request_t direction)
       DMA_Init(DMA1_Channel5, &_sd_dma_params);
    }
 
-   _thisTaskHandle = xTaskGetCurrentTaskHandle();
-
    // настройка завершена, но DMA еще не запущено
    // активируем само DMA
    DMA_Cmd(DMA1_Channel4, ENABLE);
    DMA_Cmd(DMA1_Channel5, ENABLE);
 
-   DMA_ITConfig(DMA1_Channel4, DMA_IT_TC, ENABLE);
-   NVIC_SetPriority(DMA1_Channel4_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY);
-   NVIC_EnableIRQ(DMA1_Channel4_IRQn);
-
    // разрешаем SPI к нему обращаться
    SPI_I2S_DMACmd(SD_SPI, SPI_I2S_DMAReq_Rx | SPI_I2S_DMAReq_Tx, ENABLE);
 
    // ждем завершения
-   uint32_t dummy;
-   xTaskNotifyWait(0xFFFFFFFF, 0x00000000, &dummy, portMAX_DELAY);
+   while (DMA_GetFlagStatus(DMA1_IT_TC4) == RESET) {}
+   if (DMA_GetITStatus(DMA1_IT_TC5) != SET)
+      abort();
 
    // отключаем DMA. FIXME: Впринципе можно этого и не делать, но на всякий - пускай будет
    SPI_I2S_DMACmd(SD_SPI, SPI_I2S_DMAReq_Rx | SPI_I2S_DMAReq_Tx, DISABLE);
-
 }
-
-void DMA1_Channel4_IRQHandler();
-
-void DMA1_Channel4_IRQHandler()
-{
-	BaseType_t woken = 0;
-
-	if (SET == DMA_GetITStatus(DMA1_IT_TC4))
-	{
-		DMA_ClearITPendingBit(DMA1_IT_TC4);
-		vTaskNotifyGiveFromISR(_thisTaskHandle, &woken);
-		_thisTaskHandle = NULL;
-		portYIELD_FROM_ISR(woken);
-	}
-	else
-	{
-		abort(); // чет какая-то фигня случилась
-	}
-
-	if (DMA_GetITStatus(DMA1_IT_TC5) != SET)
-		abort();
-
-}
-
 
 
 // =================================================================

@@ -11,9 +11,6 @@
 #include <assert.h>
 #include <stm32f10x_conf.h>
 
-#include <FreeRTOS.h>
-#include <task.h>
-
 #include "tim_dma_control.h"
 
 #include "defs_hw.h"
@@ -31,8 +28,6 @@ static TIM_OCInitTypeDef _gate_ocr_params;
 
 // настройки DMA
 static DMA_InitTypeDef _dma_params;
-
-static TaskHandle_t _thisTaskHandle = NULL;
 
 
 void tdcs_init()			//TIM-DMA CONTROLLING SYSTEM
@@ -184,27 +179,13 @@ void tdcs_pull_data(void * buffer, size_t buffer_size)
 	// и включаем
 	DMA_Cmd(DMA1_Channel1, ENABLE);
 
-	// включаем прерывания от DMA
-	DMA_ITConfig(DMA1_Channel1, DMA_IT_TC, ENABLE); // на успешную передачу
-	DMA_ITConfig(DMA1_Channel1, DMA_IT_TE, ENABLE);	// на ошибку при передаче
-
 	// Настройка железа завершена!
 	// все запускаем
-
-	_thisTaskHandle = xTaskGetCurrentTaskHandle();
-
 	// порядок важен
 	TIM_Cmd(TIM3, ENABLE);
 	TIM_Cmd(TIM2, ENABLE);
 
-
-	DMA_ITConfig(DMA1_Channel1, DMA_IT_TC, ENABLE);
-	NVIC_SetPriority(DMA1_Channel1_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY);
-	NVIC_EnableIRQ(DMA1_Channel1_IRQn);
-
-	uint32_t transferResult;
-	xTaskNotifyWait(0xFFFFFFFF, 0x00000000, &transferResult, portMAX_DELAY);
-
+	while (RESET == DMA_GetITStatus(DMA1_IT_TC1)){}
 
 	// Все выключаем
 	DMA_DeInit(DMA1_Channel1);
@@ -221,22 +202,3 @@ void tdcs_pull_data(void * buffer, size_t buffer_size)
 	// завершились
 	return;
 }
-
-void DMA1_Channel1_IRQHandler(void)
-{
-	BaseType_t woken = 0;
-
-	if (SET == DMA_GetITStatus(DMA1_IT_TC1))
-	{
-		DMA_ClearITPendingBit(DMA1_IT_TC1);
-		vTaskNotifyGiveFromISR(_thisTaskHandle, &woken);
-		_thisTaskHandle = NULL;
-		portYIELD_FROM_ISR(woken);
-	}
-	else
-	{
-		abort(); // чет какая-то фигня случилась
-	}
-}
-
-

@@ -116,9 +116,9 @@ void camera_fifo_read(void * buffer, size_t bufferSize)
 size_t camera_fifo_lines_left()
 {
 	volatile size_t tmp;
-	__disable_irq();
+	//__disable_irq();
 	tmp = _hrefCntLeft;
-	__enable_irq();
+	//__enable_irq();
 	return tmp;
 }
 
@@ -134,8 +134,8 @@ void EXTI15_10_IRQHandler()
 		{
 			// разрешаем запись в фифо
 			GPIOB->BSRR |=  VIDEO_WE;
-			return;
 		}
+		return;
 	}
 
 	_hrefCntLeft--;
