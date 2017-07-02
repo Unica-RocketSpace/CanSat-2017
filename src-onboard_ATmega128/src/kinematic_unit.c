@@ -285,13 +285,13 @@ void pull_recon_data()
 {
 
 
-	TIMES.imu = 0;
-	TIMES.filters = 0;
-	TIMES.bmp280 = 0;
-	TIMES.ds18b20 = 0;
-	TIMES.adxl345 = 0;
-	TIMES.zero = rscs_time_get();
-	TIMES.total = TIMES.zero;
+	//TIMES.imu = 0;
+	//TIMES.filters = 0;
+	//TIMES.bmp280 = 0;
+	//TIMES.ds18b20 = 0;
+	//TIMES.adxl345 = 0;
+	//TIMES.zero = rscs_time_get();
+	//TIMES.total = TIMES.zero;
 
 
 	//опрос MPU9255 и пересчет показаний
@@ -301,8 +301,8 @@ void pull_recon_data()
 	MPU9255_recalc_accel(TRANSMIT_DATA.aTransmitXYZ, STATE.aRelatedXYZ);
 	MPU9255_recalc_gyro(TRANSMIT_DATA.gTransmitXYZ, STATE.gRelatedXYZ);
 	MPU9255_recalc_compass(TRANSMIT_DATA.cTransmitXYZ, STATE.cRelatedXYZ);
-	TIMES.imu = rscs_time_get() - TIMES.zero;
-	TIMES.total = TIMES.total + TIMES.imu;
+	//TIMES.imu = rscs_time_get() - TIMES.zero;
+	//TIMES.total = TIMES.total + TIMES.imu;
 	/*=====================================================================*/
 
 	//Применение фильтра Калмана
@@ -315,14 +315,14 @@ void pull_recon_data()
 	//apply_NoiseFilter(STATE.gRelatedXYZ, GYRO_NOISE, 3);
 	//printf("Accelerometer:\n");
 	//apply_NoiseFilter(STATE.aRelatedXYZ, ACCEL_NOISE, 3);
-	TIMES.filters = rscs_time_get() - TIMES.total;
-	TIMES.total = TIMES.total + TIMES.filters;
+	//TIMES.filters = rscs_time_get() - TIMES.total;
+	//TIMES.total = TIMES.total + TIMES.filters;
 	/*=====================================================================*/
 
 	//опрос барометра bmp280
 	pressure_read_recon(&TRANSMIT_DATA.pressure, &TRANSMIT_DATA.temp_bmp280, &STATE.height, &STATE.temp_bmp280);
-	TIMES.bmp280 = rscs_time_get() - TIMES.total;
-	TIMES.total = TIMES.total + TIMES.bmp280;
+	//TIMES.bmp280 = rscs_time_get() - TIMES.total;
+	//TIMES.total = TIMES.total + TIMES.bmp280;
 	/*=====================================================================*/
 
 	//опрос термометра ds18b20
@@ -332,15 +332,15 @@ void pull_recon_data()
 		STATE.temp_ds18b20 = rscs_ds18b20_count_temperature(ds18b20, TRANSMIT_DATA.temp_ds18b20);
 		rscs_ds18b20_start_conversion(ds18b20);
 	}
-	TIMES.ds18b20 = rscs_time_get() - TIMES.total;
-	TIMES.total = TIMES.total + TIMES.ds18b20;
+	//TIMES.ds18b20 = rscs_time_get() - TIMES.total;
+	//TIMES.total = TIMES.total + TIMES.ds18b20;
 	/*=====================================================================*/
 
 	//опрос акселерометра ADXL345
 	rscs_adxl345_GetGXYZ(adxl345, &TRANSMIT_DATA.ADXL_transmit[0], &TRANSMIT_DATA.ADXL_transmit[1], &TRANSMIT_DATA.ADXL_transmit[2],
 									&STATE.aALT_XYZ[0], &STATE.aALT_XYZ[1], &STATE.aALT_XYZ[2]);
-	TIMES.adxl345 = rscs_time_get() - TIMES.total;
-	TIMES.total = TIMES.total + TIMES.adxl345;
+	//TIMES.adxl345 = rscs_time_get() - TIMES.total;
+	//TIMES.total = TIMES.total + TIMES.adxl345;
 	/*=====================================================================*/
 
 	STATE.Time = rscs_time_get();
@@ -556,41 +556,23 @@ inline float functionForRK(uint8_t i, float * y)
 void solveByRungeKutta(float dt, float * y, float * y_new)
 {
 	float k1[3], k2[3], k3[3], k4[3], y1[3], y2[3], y3[3];
-	//printf("dt = %f\n", dt);
 
 	for (int i = 0; i < 3; i++)
 		k1[i] = functionForRK(i, y);
-	//printf("k1 = %f,   %f,   %f\n", k1[0], k1[1], k1[2]);
-
 	for (int i = 0; i < 3; i++)
 		y1[i] = y[i] + (float)(k1[i] * dt / 2);
-	//printf("y1 = %f,   %f,   %f\n", y1[0], y1[1], y1[2]);
-
 	for (int i = 0; i < 3; i++)
 		k2[i] = functionForRK(i, y1);
-	//printf("k2 = %f,   %f,   %f\n", k2[0], k2[1], k2[2]);
-
 	for (int i = 0; i < 3; i++)
 		y2[i] = y[i] + (float)(k2[i] * dt / 2);
-	//printf("y2 = %f,   %f,   %f\n", y2[0], y2[1], y2[2]);
-
 	for (int i = 0; i < 3; i++)
 		k3[i] = functionForRK(i, y2);
-	//printf("k3 = %f,   %f,   %f\n", k3[0], k3[1], k3[2]);
-
 	for (int i = 0; i < 3; i++)
 		y3[i] = y[i] + (float)(k3[i] * dt);
-	//printf("y3 = %f,   %f,   %f\n", y3[0], y3[1], y3[2]);
-
 	for (int i = 0; i < 3; i++)
 		k4[i] = functionForRK(i, y3);
-	//printf("k4 = %f,   %f,   %f\n", k4[0], k4[1], k4[2]);
-
 	for (int i = 0; i < 3; i++)
 		y_new[i] = y[i] + (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]) *  dt / 6;
-	//printf("delta = %f,    %f,    %f\n\n", 	(k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]) *  dt / 6,
-	//											(k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]) *  dt / 6,
-	//											(k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]) *  dt / 6);
 }
 
 void getTranslations (float * translations)

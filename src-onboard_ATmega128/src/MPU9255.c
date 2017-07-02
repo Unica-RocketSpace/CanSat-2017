@@ -72,9 +72,9 @@ void MPU9255_init()
 	MPU9255_write_register(GYRO_AND_ACCEL,	107,	0b10000000);	//RESET
 
 	MPU9255_write_register(GYRO_AND_ACCEL,	25,		0b00000001);	//Sample Rate Divider
-	MPU9255_write_register(GYRO_AND_ACCEL,	26,		0b00000110);	//config (DLPF = 110)
+	MPU9255_write_register(GYRO_AND_ACCEL,	26,		0b00000101);	//config (DLPF = 101)
 	MPU9255_write_register(GYRO_AND_ACCEL,	28,		(0b00000000 | (ACCEL_RANGE << 3))); 	//accel config (rate 4g = 01)
-	MPU9255_write_register(GYRO_AND_ACCEL,	29,		0b00000110);	//accel config 2 (Fch_b = 0, DLPF = 110)
+	MPU9255_write_register(GYRO_AND_ACCEL,	29,		0b00000100);	//accel config 2 (Fch_b = 0, DLPF = 100)
 	MPU9255_write_register(GYRO_AND_ACCEL,	35,		0b00000000);	//FIFO enable (not enabled)
 	MPU9255_write_register(GYRO_AND_ACCEL,	56,		0b00000000);	//interrupt enable (int disable = 0)
 	MPU9255_write_register(GYRO_AND_ACCEL,	106,	0b00000000);	//user control

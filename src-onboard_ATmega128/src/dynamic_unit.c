@@ -57,8 +57,8 @@ void setWheelSpeed(float WheelSpeed)
 		}
 	else
 	{
-		DRV_PORT |= (1 << WH1_C);		//FAST MOTOR STOP
-		DRV_PORT |= (1 << WH1_D);		//FIXME: ПРОВЕРИТЬ
+		DRV_PORT |= (1 << WH1_C);		//FAST MOTOR STOP (это не так)
+		DRV_PORT |= (1 << WH1_D);
 	}
 
 	WHEEL_SPEED_REG = (round)((WheelSpeed / MAX_WHEEL_SPEED)/* * (3 / 3.3)*/ * 20000);

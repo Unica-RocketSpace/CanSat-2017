@@ -65,7 +65,16 @@ typedef struct
 	//Единичный вектор магнитного поля
 	float B_XYZ[3];
 
-	uint8_t state;		//состояние, можно писать интересующие биты
+	uint8_t state;		/* состояние, можно писать интересующие биты
+						 * 0 - раскрытие парашюта
+						 * 1 - готовность мангитометра
+						 * 2 - RESERVED
+						 * 3 - RESERVED
+						 * 4 - RESERVED
+						 * 5 - RESERVED
+						 * 6 - RESERVED
+						 * 7 - RESERVED
+						 */
 
 	uint32_t Time;
 	uint32_t previousTime;

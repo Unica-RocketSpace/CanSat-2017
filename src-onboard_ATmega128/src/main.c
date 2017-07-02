@@ -26,7 +26,6 @@
 #include "dynamic_unit.h"
 #include "MPU9255.h"
 
-
 void blink_led_init()
 {
 	DDRG |= (1 << 3);
@@ -35,9 +34,15 @@ void blink_led_init()
 void blink_led()
 {
 	PORTG ^= (1 << 3);
-	_delay_ms(100);
 }
 
+void extiInit()
+{
+	//Настройка внешнего прерывания INT7
+	DDRE &= ~(1 << 7);
+	EICRB |= (1 << ISC71) | (1 << ISC70);		//Установливаем режим Rising edge
+	EIMSK |= (1 << INT7);						//Разрешаем внешнее прерывание
+}
 
 void send_calibration_values()
 {
@@ -162,71 +167,79 @@ void printf_state()
 
 int main()
 {
+	//*****ИНИЦИАЛИЗАЦИЯ БОРТА*****//
 	_delay_ms(3000);
 	blink_led_init();
 	hardwareInit();
 	kinematicInit();
 	dynamicInit();
+	STATE.state = 0;		//обнуляем состояние аппарата (на всякий случай)
+	extiInit();
+
+	//*****УСТАНОВКА НАЧАЛЬНЫХ ПАРАМЕТРОВ*****//
 	set_zero_pressure();	//устанавливаем нулевое давление
 	set_ISC_offset();
-	//printf_rotation_matrix();
 
-	//FIXME: Внутри функции set_ISC_offset мигалка работает до самого конца,
-	//а сразу после выхода из функции не работает
+
+	//*****ОЖИДАНИЕ РАСКРЫТИЯ ПАРАШЮТА*****//
+
+	while((STATE.state & (1 << 0)) == 0) {printf("while state = %d\n", STATE.state);}
+	printf("next state = %d\n", STATE.state & (1 << 0));
+	setWheelSpeed(200);
 	//set_magn_dir();
 
 
 	//ТЕСТ СЕРВЫ И ДВИГАТЕЛЯ
 	/*while(1)
 	{
-		motor_test();
+		//motor_test();
 		//servo_test();
 		//blink_led();
 	}*/
 
 
 	int p_number = 0;
-
 	while(1)
 	{
+		//*****ИНДИКАЦИЯ РАБОТЫ УСТРОЙСТВ*****//
 		blink_led();
-		//set_magn_dir();
+
+		//*****СЧЕТЧИК ИТЕРРАЦИЙ*****//
+		p_number++;
+
+		//*****ОПРОС ДАТЧИКОВ*****//
 		pull_recon_data();
+
+		//set_magn_dir();
 		//construct_trajectory();
 
 		//Отправляем пакет в формате "PRINT"
-		p_number++;
 		//printf_package(p_number);
 		//printf_state();
 
-
 		//Пересчитываем матрицу поворота по данным с магнитометра
-
 		/*if (STATE.state & (1 << 1))
 		{
 			recalc_ISC();
 			printf("recalced matrix:  \n");
 			printf_rotation_matrix();
-		}*/
-
-		//send_package();
-		//_delay_ms(500);
+		 */
 
 		//Отправляем пакет в формате "HEX"
 		send_package();
-		TIMES.transmition = rscs_time_get() - TIMES.total;
+		//TIMES.transmition = rscs_time_get() - TIMES.total;
 		//TIMES.total = TIMES.total + TIMES.transmition;
 
 		if (p_number % 1 == 0)
 		{
-			//printf("%f, %f, %f\n", STATE.cRelatedXYZ[0], STATE.cRelatedXYZ[1], STATE.cRelatedXYZ[2]);
+			//printf("c_RSC: %f, %f, %f\n", STATE.cRelatedXYZ[0], STATE.cRelatedXYZ[1], STATE.cRelatedXYZ[2]);
 			//printf("g_RSC: %f, %f, %f\n", STATE.gRelatedXYZ[0], STATE.gRelatedXYZ[1], STATE.gRelatedXYZ[2]);
 			//printf("g_ISC: %f, %f, %f\n\n", STATE.w_XYZ[0], STATE.w_XYZ[1], STATE.w_XYZ[2]);
 			//printf("a_RSC: %f, %f, %f\n", STATE.aRelatedXYZ[0], STATE.aRelatedXYZ[1], STATE.aRelatedXYZ[2]);
 			//printf("a_ISC: %f, %f, %f\n", STATE.a_XYZ[0], STATE.a_XYZ[1], STATE.a_XYZ[2]);
 			//printf_rotation_matrix();
 			//printf_rotation_matrix_string();
-
+			/*
 			printf("Zero = %ld\n", TIMES.zero);
 			printf("Imu = %ld\n", TIMES.imu);
 			printf("Filters = %ld\n", TIMES.filters);
@@ -236,10 +249,9 @@ int main()
 			printf("Transmition = %ld\n", TIMES.transmition);
 			printf("Total = %ld\n\n", TIMES.total - TIMES.zero);
 			printf("Cycle = %ld\n\n", rscs_time_get() - TIMES.zero);
-
+ 	 	 	*/
 			//printf("Determinant = %f\n", getDeterminant(*STATE.f_XYZ));
 			//printf("TIME: %f c\n\n", (float)STATE.Time / 1000);
-
 			//printf_state();
 		}
 	}
@@ -247,8 +259,8 @@ int main()
 	return 0;
 }
 
-
-//TODO: ОТКАЛИБРОВАТЬ ДАТЧИКИ
-//TODO: УЧЕСТЬ, ЧТО КАМЕРА ПОВЕРНУТА НА 45* ОТНОСИТЕЛЬНО ССК
-
-
+ISR (INT7_vect)
+{
+	STATE.state |= (1 << 0);
+	printf("STATE.state = %d\n", STATE.state);
+}
