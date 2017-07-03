@@ -12,22 +12,27 @@
 #include <string.h>
 #include <math.h>
 
+
 #define INV_START_FRAME		0xFF7C0000
 #define INV_END_ROW			0xFF7C00FF
-#define INV_END_FRAME			0x007CFFFF
+#define INV_END_FRAME		0x007CFFFF
 
 #define START_FRAME			0x0000FF7C
 #define END_ROW				0x00FFFF7C
-#define END_FRAME				0xFFFF007C
+#define END_FRAME			0xFFFF007C
 
 #define MARKER_SIZE		4
 
-const char FRAME_HEADER[] = "P6 640 300 255 ";
+
 char mode[10];
 const char color_mode[] = "color";
 const char mono_mode[] = "mono";
-char video_number;
-//char path_stream[] = "/media/developer/SDHC/VIDEO- .BIN";
+int video_number;
+char numberMode[10];
+const char numberMode_number[] = "number";
+const char numberMode_last[] = "last";
+const char FRAME_HEADER[] = "P6 640 300 255 ";
+
 
 //ЗАПОЛНЯЕТ ФАЙЛ СГЕНЕРИРОВАННЫМИ ВИДЕОДАННЫМИ
 //ПАРАМЕТР	* path		- указатель на путь к файлу, в который будут записаны видеоданные
@@ -88,7 +93,6 @@ int createFrame(uint16_t * stream, int length, int pointer, const char * path_fr
 {
 	FILE * file_frame  = fopen(path_frame, "wb");		//файл со сформиррованным кадром
 	int k = 0;
-	uint8_t Y, Cb, Cr;
 
 	for(int i = pointer; i < (length / 2); i++)
 	{
@@ -97,6 +101,7 @@ int createFrame(uint16_t * stream, int length, int pointer, const char * path_fr
 		{
 			i = i + 2;
 
+			int16_t Y = 0, Cb = 0, Cr = 0;
 			int16_t red, green, blue;
 			fwrite(FRAME_HEADER, strlen(FRAME_HEADER), 1, file_frame);
 			printf("Найдено начало кадра [пиксель номер %d]\n", i - 2);
@@ -129,9 +134,12 @@ int createFrame(uint16_t * stream, int length, int pointer, const char * path_fr
 					green = round(Y - 0.34414 * (Cb - 128) - 0.71414 * (Cr - 128));
 					blue = round(Y + 1.772 * (Cb - 128));
 
-					if (red > 255)	red = 255;		if (red < 0)	red = 0;
-					if (green > 255)green = 255;	if (green < 0)	green = 0;
-					if (blue > 255)	blue = 255;		if (blue < 0)	blue = 0;
+					if (red > 255)	red = 255;
+					if (red < 0)	red = 0;
+					if (green > 255)green = 255;
+					if (green < 0)	green = 0;
+					if (blue > 255)	blue = 255;
+					if (blue < 0)	blue = 0;
 				}
 
 				else if (!strcmp(mode, mono_mode))
@@ -175,48 +183,120 @@ fclose(file_frame);
 return -1;
 }
 
-/*void set_mode_()
+int get_sizeof_number(int number)
 {
-	printf("ВВЕДИТЕ РЕЖИМ ОБРАБОТКИ ВИДЕО\n");
+	char dummy[100];
+	sprintf(dummy, "%d", number);
+	int size = strlen(dummy);
+
+	return size;
+}
+
+void set_mode_()
+{
+	printf("ВВЕДИТЕ РЕЖИМ ОБРАБОТКИ ВИДЕО (mono / color)\n");
 	scanf("%s", mode);
 
-	printf("ВВЕДИТЕ НОМЕР ВИДЕО\n");
-	scanf("%s", &video_number);
+	while(((strcmp(mode, color_mode) != 0) & (strcmp(mode, mono_mode) != 0)))
+	{
+		if (((strcmp(mode, color_mode) != 0) & (strcmp(mode, mono_mode) != 0)))		//проверям совпадение введенного режима с возможными
+			printf("mode_error\n");
+		set_mode_();
+	}
+}
 
-	path_stream[28] = video_number;
-	printf("%s\n", path_stream);
-}*/
+void set_number_()
+{
+	printf("ВВЕДИТЕ РЕЖИМ ВЫБОРА НОМЕРА\n");
+	scanf("%s", numberMode);
 
+	if (!strcmp(numberMode, numberMode_number))
+	{
+		printf("ВВЕДИТЕ НОМЕР ВИДЕО\n");
+		scanf("%d", &video_number);
+	}
+	else if (!strcmp(numberMode, numberMode_last))
+		video_number = -1;
+	else
+	{
+		printf("choosing_number_error\n");
+		set_number_();
+	}
 
+}
 
 //MAIN*****************
 int main()
 {
-	const char path_stream[] = "/media/developer/SDHC/VIDEO-13.BIN";
-	char 		path_folder[]	= "/home/developer/Рабочий стол/Frames/frame-";
+	//char 		path_folder[]	= "/home/developer/Рабочий стол/Frames/frame-";
+	const char path_folder[] = "/home/snork/Desktop/unica/";
 	const char	extension[]		= ".ppm";
 
-	//set_mode_();
-	printf("ВВЕДИТЕ РЕЖИМ ОБРАБОТКИ ВИДЕО\n");
-	scanf("%s", mode);
+	//char default_path[] = "/media/developer/SDHC/VIDEO-";
+	//char default_path[] = "/media/developer/SDHC/VIDEO-";
+	const char default_path[] = "/run/media/snork/4D2E-16F9/VIDEO-";
+	char video_extension[] = ".BIN";
+	char path_stream[] = "";
 
-		/*printf("ВВЕДИТЕ НОМЕР ВИДЕО\n");
-		scanf("%s", &video_number);
 
-		//path_stream[28] = video_number;
-		printf("%s\n", path_stream);*/
+	set_mode_();
 
-	char number[4];
-	int n = 0;
-	char path_frame [strlen(path_folder) + strlen(number) + strlen(extension) + 1];
+number_l:
+	set_number_();
+	if (video_number >= 0)		//если введен номер видео
+	{
+		/*создаем путь к видео, зная номер файла*/
+		char path[strlen(default_path) + strlen(video_extension) + get_sizeof_number(video_number)];
+		sprintf(path, "%s%d%s", default_path, video_number, video_extension);
+		//копируем путь в path_stream
+		sprintf(path_stream, "%s", path);
+
+	}
+	else if (video_number == -1)
+	{
+		int current_number = 0;
+		while(1)
+		{
+			//создаем путь к видео
+			char path[strlen(default_path) + strlen(video_extension) + get_sizeof_number(current_number)];
+			//sprintf(path, "%s%d%s", default_path, current_number, video_extension);
+			sprintf(path, "%s%d%s", default_path, current_number, video_extension);
+			printf("%s\n", path);
+
+
+			FILE * file_stream = fopen(path, "r");		//создаем файл с видеопотоком
+
+			//пробуем его открыть
+			if (file_stream == NULL)
+			{
+				printf("error on opening file #%d\n", current_number);
+				printf("number of correct file: %d\n", current_number - 1);
+				video_number = current_number - 1;
+				/*создаем путь к видео, зная номер файла*/
+				char path[strlen(default_path) + strlen(video_extension) + get_sizeof_number(video_number)];
+				sprintf(path, "%s%d%s", default_path, video_number, video_extension);
+				//копируем путь в path_stream
+				sprintf(path_stream, "%s", path);
+				break;
+			}
+			else
+				current_number++;
+		}
+
+	}
+	else
+		goto number_l;
+
+	printf("%s\n", path_stream);	//знаем путь из вышестоящей конструкции
+
 
 	//СОЗДАЕМ ФАЙЛ С ВИДЕОПОТОКОМ
 	FILE * file_stream = fopen(path_stream, "r");		//файл с видеопотоком
 	//generateStream(path_stream);
 	if (file_stream == NULL)
 	{
-		printf("ERROR");								//выводит ERROR если невозможно открыть файл
-		return 0;
+		printf("OPEN_ERROR\n");								//выводит ERROR если невозможно открыть файл
+		goto number_l;
 	}
 	fseek(file_stream, 0, SEEK_END);					//переносим указатель в конец файла
 	int pointer = ftell(file_stream);					//возвращаем функцией ftell длину файла в pointer
@@ -228,6 +308,10 @@ int main()
 
 	fseek(file_stream, 0, SEEK_SET);					//перемещаем указатель в начало файла
 	fread(stream_uint, 2 * pointer-1, 1, file_stream);	//читаем из file_stream в созданный массив stream_uint один раз pointer бит
+
+	char number[4];
+	int n = 0;
+	char path_frame [strlen(path_folder) + strlen(number) + strlen(extension) + 1];
 
 	int state = 0;
 	while(1)

@@ -6,7 +6,6 @@
  */
 
 #include "sd.h"
-//#include "../include/sd.h"
 
 #include <string.h>
 #include <errno.h>
@@ -24,14 +23,14 @@
 #define SD_SPI SPI2 // настройки пинов и порта сюда пока не вынесены
 #define SD_DMA DMA1 // Зависит от устройства
 
-#define SD_DMA_CHANNEL_RX  DMA1_Channel4
-#define SD_DMA_CHANNEL_TX  DMA1_Channel5
-
-#define SD_DMA_FLAG_RX_TC  DMA1_FLAG_TC4 // Успешно завершено
-#define SD_DMA_FLAG_TX_TC  DMA1_FLAG_TC5
-
-#define SD_DMA_FLAG_RX_ER  DMA1_FLAG_TE4 // Завершено c ошибкой
-#define SD_DMA_FLAG_TX_ER  DMA1_FLAG_TE5
+//#define SD_DMA_CHANNEL_RX  DMA1_Channel4
+//#define SD_DMA_CHANNEL_TX  DMA1_Channel5
+//
+//#define SD_DMA_FLAG_RX_TC  DMA1_IT_TC4 // Успешно завершено
+//#define SD_DMA_FLAG_TX_TC  DMA1_IT_TC5
+//
+//#define SD_DMA_FLAG_RX_ER  DMA1_IT_TE4 // Завершено c ошибкой
+//#define SD_DMA_FLAG_TX_ER  DMA1_IT_TE5
 
 #define SD_BAUD_RATE_PRESCALER_SLOW SPI_BaudRatePrescaler_256  //!< для первичной прокачки и инициализации SD карты
 #define SD_BAUD_RATE_PRESCALER_FAST SPI_BaudRatePrescaler_4    //!< для основной работы. Быстрее не может :c
@@ -77,12 +76,13 @@ inline static void _spi_wait(void)
    bool notYet = true;
    while (notYet)
    {
-      __disable_irq();
+      //__disable_irq();
       if (SD_SPI->SR & SPI_I2S_FLAG_RXNE)
          notYet = false;
-      __enable_irq();
+      //__enable_irq();
    }
 }
+
 
 // Запуск DMA для обмена блоками данных с SD картой по SPI (считай асинхронная операция)
 // Блоки фиксированного размера 512 байт. Буффер должен быть жив до окончания операции
@@ -90,8 +90,8 @@ inline static void _sd_dma_transfer(void * target, sd_request_t direction)
 {
    // Чистим настройки DMA с прошлого раза FIXME: можно чистить не все а только конкретный флаг,
    // который мешает перезапустить
-   DMA_DeInit(SD_DMA_CHANNEL_RX);
-   DMA_DeInit(SD_DMA_CHANNEL_TX);
+   DMA_DeInit(DMA1_Channel4);
+   DMA_DeInit(DMA1_Channel5);
 
    if (SD_REQUEST_WRITE ==  direction)
    {
@@ -101,13 +101,13 @@ inline static void _sd_dma_transfer(void * target, sd_request_t direction)
       _sd_dma_params.DMA_MemoryBaseAddr = (uint32_t)&dummy_rx_buff;
       _sd_dma_params.DMA_DIR = DMA_DIR_PeripheralSRC;
       _sd_dma_params.DMA_MemoryInc = DMA_MemoryInc_Disable;
-      DMA_Init(SD_DMA_CHANNEL_RX, &_sd_dma_params);
+      DMA_Init(DMA1_Channel4, &_sd_dma_params);
 
       // Теперь на TX. Пишем из данного буфера с перемещением каретки
       _sd_dma_params.DMA_MemoryBaseAddr = (uint32_t)target;
       _sd_dma_params.DMA_DIR = DMA_DIR_PeripheralDST;
       _sd_dma_params.DMA_MemoryInc = DMA_MemoryInc_Enable;
-      DMA_Init(SD_DMA_CHANNEL_TX, &_sd_dma_params);
+      DMA_Init(DMA1_Channel5, &_sd_dma_params);
    }
    else // чтение
    {
@@ -115,33 +115,33 @@ inline static void _sd_dma_transfer(void * target, sd_request_t direction)
       _sd_dma_params.DMA_MemoryBaseAddr = (uint32_t)target;
       _sd_dma_params.DMA_DIR = DMA_DIR_PeripheralSRC;
       _sd_dma_params.DMA_MemoryInc = DMA_MemoryInc_Enable;
-      DMA_Init(SD_DMA_CHANNEL_RX, &_sd_dma_params);
+      DMA_Init(DMA1_Channel4, &_sd_dma_params);
 
       // Теперь на TX. Кормим муодуль 0xFFками
       static const uint16_t dummy_tx_buff = 0xFFFF;
       _sd_dma_params.DMA_MemoryBaseAddr = (uint32_t)&dummy_tx_buff;
       _sd_dma_params.DMA_DIR = DMA_DIR_PeripheralDST;
       _sd_dma_params.DMA_MemoryInc = DMA_MemoryInc_Disable;
-      DMA_Init(SD_DMA_CHANNEL_TX, &_sd_dma_params);
+      DMA_Init(DMA1_Channel5, &_sd_dma_params);
    }
 
    // настройка завершена, но DMA еще не запущено
    // активируем само DMA
-   DMA_Cmd(SD_DMA_CHANNEL_RX, ENABLE);
-   DMA_Cmd(SD_DMA_CHANNEL_TX, ENABLE);
+   DMA_Cmd(DMA1_Channel4, ENABLE);
+   DMA_Cmd(DMA1_Channel5, ENABLE);
+
    // разрешаем SPI к нему обращаться
    SPI_I2S_DMACmd(SD_SPI, SPI_I2S_DMAReq_Rx | SPI_I2S_DMAReq_Tx, ENABLE);
 
-   // теперь все, ждем пока DMA закончит
-   while (DMA_GetFlagStatus(SD_DMA_FLAG_RX_TC) == RESET)
-   {
-      if (DMA_GetFlagStatus(SD_DMA_FLAG_RX_ER) == SET)
-         abort();
-   }
+   // ждем завершения
+   while (DMA_GetFlagStatus(DMA1_IT_TC4) == RESET) {}
+   if (DMA_GetITStatus(DMA1_IT_TC5) != SET)
+      abort();
 
    // отключаем DMA. FIXME: Впринципе можно этого и не делать, но на всякий - пускай будет
    SPI_I2S_DMACmd(SD_SPI, SPI_I2S_DMAReq_Rx | SPI_I2S_DMAReq_Tx, DISABLE);
 }
+
 
 // =================================================================
 
@@ -202,11 +202,11 @@ void sd_init(void)
    _sd_dma_params.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
    _sd_dma_params.DMA_BufferSize = 512;
    _sd_dma_params.DMA_Mode = DMA_Mode_Normal;
-   _sd_dma_params.DMA_Priority = DMA_Priority_VeryHigh;
+   _sd_dma_params.DMA_Priority = DMA_Priority_Low;
    _sd_dma_params.DMA_M2M = DMA_M2M_Disable;
 
-   DMA_Cmd(SD_DMA_CHANNEL_TX, ENABLE);
-   DMA_Cmd(SD_DMA_CHANNEL_RX, ENABLE);
+   DMA_Cmd(DMA1_Channel4, ENABLE);
+   DMA_Cmd(DMA1_Channel5, ENABLE);
 
    sd_cs(false);
 }
