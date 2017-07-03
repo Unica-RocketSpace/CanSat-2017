@@ -13,13 +13,13 @@
 #include <math.h>
 
 
-#define INV_START_FRAME		0xFF7C0000
-#define INV_END_ROW			0xFF7C00FF
+#define INV_START_FRAME	0xFF7C0000
+#define INV_END_ROW		0xFF7C00FF
 #define INV_END_FRAME		0x007CFFFF
 
-#define START_FRAME			0x0000FF7C
-#define END_ROW				0x00FFFF7C
-#define END_FRAME			0xFFFF007C
+#define START_FRAME		0x00007CFF
+#define END_ROW			0x00FFFF7C
+#define END_FRAME			0xFFFF7C00
 
 #define MARKER_SIZE		4
 
@@ -89,39 +89,32 @@ void setFrameNumber(int number, char * name, int length)
 //ПАРАМЕТР	length		- длина массива
 //ПАРАМЕТР	pointer		- номер элемента массива, с которого начнется поиск кадра
 //ПАРАМЕТР	* path_frame- указатель на путь к файлу, в который будет записан
-int createFrame(uint16_t * stream, int length, int pointer, const char * path_frame)
+int createFrame(uint8_t * stream, int length, int pointer, const char * path_frame)
 {
 	FILE * file_frame  = fopen(path_frame, "wb");		//файл со сформиррованным кадром
 	int k = 0;
 
 	for(int i = pointer; i < (length / 2); i++)
 	{
-		if ((	(stream[i + 0] << 16) |
-				(stream[i + 1] << 0 )	) == START_FRAME)
+		if (((stream[i + 0] << 24) | (stream[i + 1] << 16 ) | (stream[i + 2] << 8 ) | (stream[i + 3] << 0 )) == START_FRAME)
 		{
-			i = i + 2;
+			i = i + 4;
 
-			int16_t Y = 0, Cb = 0, Cr = 0;
-			int16_t red, green, blue;
+			//int8_t Y = 0, Cb = 0, Cr = 0;
+			int8_t red, green, blue;
 			fwrite(FRAME_HEADER, strlen(FRAME_HEADER), 1, file_frame);
-			printf("Найдено начало кадра [пиксель номер %d]\n", i - 2);
+			printf("Найдено начало кадра [пиксель номер %d]\n", i - 4);
 			for(; i < length; i++)
 			{
-				/*if ((	(stream[i + 0] << 16) |
-						(stream[i + 1] << 0 )	) == END_ROW)
-				{
-					i = i + 2;
-				}*/
-				if ((	(stream[i + 0] << 16) |
-						(stream[i + 1] << 0 )	) == END_FRAME)
+				if (((stream[i + 0] << 24) | (stream[i + 1] << 16 ) | (stream[i + 2] << 8 ) | (stream[i + 3] << 0 )) == END_FRAME)
 				{
 					printf("Найден конец кадра [записано %d пикс.]\n", k);
 					fclose(file_frame);
-					return i + 2;
+					return i + 4;
 				}
 
 
-				if (!strcmp(mode, color_mode))
+				/*if (!strcmp(mode, color_mode))
 				{
 					Y = (uint8_t)stream[i];
 					if (i % 2 == 0)
@@ -142,7 +135,7 @@ int createFrame(uint16_t * stream, int length, int pointer, const char * path_fr
 					if (blue < 0)	blue = 0;
 				}
 
-				else if (!strcmp(mode, mono_mode))
+				/ *else if (!strcmp(mode, mono_mode))
 				{
 					uint8_t k_temp = (uint8_t)stream[i];
 					stream[i] = stream[i] >> 8 ;
@@ -150,6 +143,12 @@ int createFrame(uint16_t * stream, int length, int pointer, const char * path_fr
 					red = (uint8_t)(stream[i] >> 8);
 					green = (uint8_t)(stream[i] >> 8);
 					blue = (uint8_t)(stream[i] >> 8);
+				}*/
+				if (!strcmp(mode, mono_mode))
+				{
+					red = (uint8_t)(stream[i]);
+					green = (uint8_t)(stream[i]);
+					blue = (uint8_t)(stream[i]);
 				}
 				else {printf("ERROR");break;}
 
@@ -228,13 +227,13 @@ void set_number_()
 //MAIN*****************
 int main()
 {
-	//char 		path_folder[]	= "/home/developer/Рабочий стол/Frames/frame-";
-	const char path_folder[] = "/home/snork/Desktop/unica/";
+	char 		path_folder[]	= "/home/developer/Рабочий стол/Frames/frame-";
+	//const char path_folder[] = "/home/snork/Desktop/unica/";
 	const char	extension[]		= ".ppm";
 
 	//char default_path[] = "/media/developer/SDHC/VIDEO-";
-	//char default_path[] = "/media/developer/SDHC/VIDEO-";
-	const char default_path[] = "/run/media/snork/4D2E-16F9/VIDEO-";
+	char default_path[] = "/media/developer/4D2E-16F9/VIDEO-";
+	//const char default_path[] = "/run/media/snork/4D2E-16F9/VIDEO-";
 	char video_extension[] = ".BIN";
 	char path_stream[] = "";
 
@@ -304,7 +303,7 @@ number_l:
 
 
 	//выделяем в динамической памяти массив элементов uint16_t длины pointer и создаем указатель на него
-	uint16_t * stream_uint = (uint16_t*)malloc(pointer);
+	uint8_t * stream_uint = (uint8_t*)malloc(pointer);
 
 	fseek(file_stream, 0, SEEK_SET);					//перемещаем указатель в начало файла
 	fread(stream_uint, 2 * pointer-1, 1, file_stream);	//читаем из file_stream в созданный массив stream_uint один раз pointer бит

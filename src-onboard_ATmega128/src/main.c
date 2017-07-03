@@ -34,6 +34,7 @@ void blink_led_init()
 void blink_led()
 {
 	PORTG ^= (1 << 3);
+	_delay_ms(20);
 }
 
 void extiInit()
@@ -178,13 +179,25 @@ int main()
 
 	//*****УСТАНОВКА НАЧАЛЬНЫХ ПАРАМЕТРОВ*****//
 	set_zero_pressure();	//устанавливаем нулевое давление
+
 	set_ISC_offset();
+	for (int i = 0; i < 10; i++)
+	{
+		uint16_t marker = 0xF7F7;
+		rscs_uart_write(uart0, &marker, sizeof(marker));
+		rscs_uart_write(uart0, &STATE.f_XYZ, sizeof(STATE.f_XYZ));
+	}
 
 
 	//*****ОЖИДАНИЕ РАСКРЫТИЯ ПАРАШЮТА*****//
 
-	while((STATE.state & (1 << 0)) == 0) {printf("while state = %d\n", STATE.state);}
-	printf("next state = %d\n", STATE.state & (1 << 0));
+	while((STATE.state & (1 << 0)) == 0)
+	{//printf("while state = %d\n", STATE.state);
+		pull_recon_data();
+		send_package();
+		blink_led();
+	}
+	//printf("next state = %d\n", STATE.state & (1 << 0));
 	setWheelSpeed(200);
 	//set_magn_dir();
 
@@ -208,7 +221,7 @@ int main()
 		p_number++;
 
 		//*****ОПРОС ДАТЧИКОВ*****//
-		pull_recon_data();
+		//pull_recon_data();
 
 		//set_magn_dir();
 		//construct_trajectory();
@@ -262,5 +275,5 @@ int main()
 ISR (INT7_vect)
 {
 	STATE.state |= (1 << 0);
-	printf("STATE.state = %d\n", STATE.state);
+	//printf("STATE.state = %d\n", STATE.state);
 }

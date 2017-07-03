@@ -145,7 +145,7 @@ void printf_first_string_state(FILE * file_)
 
 int main()
 {
-	const char fake_package_path[] = "/home/developer/git/CanSat-2017/src-ground/cutecom2.bin";
+	const char fake_package_path[] = "/home/developer/git/CanSat-2017/src-ground/RAW.bin";
 	//make_fake_data(fake_package_path);
 
 	FILE * f_raw = fopen(fake_package_path, "rb");		//файл с сырыми значениями
@@ -180,7 +180,7 @@ int main()
 	int i;
 	for (i = 0; i < pointer; i++)
 	{
-		if (pack_uint[i] == 0xFF && pack_uint[i + 1] == 0xFF)	//если находит маркер структуры (0xFF), начинает анализ пакета
+		if (pack_uint[i] == 0xFA && pack_uint[i + 1] == 0xFA)	//если находит маркер структуры (0xFF), начинает анализ пакета
 		{
 			package * pack = (package*)(pack_uint + i);
 			if (check_package(pack))
@@ -218,7 +218,7 @@ int main()
 				/*---------------------------------------------------------------------*/
 
 				//content_FPrint(stdout, pack, &DATA, ALL);
-				//content_FPrint(f_ready_txt, pack, &DATA, ALL);
+				//content_FPrint(f_ready_txt, pack, &DEVICE_STATE, ALL);
 				//content_FPrint(f_ready_csv, pack, &DATA, ALL | CSV);
 
 			}

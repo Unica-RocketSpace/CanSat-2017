@@ -95,6 +95,11 @@ void sd_task(void * args)
 		dump(&stream_file, buffer, BUFFER_SIZE);
 		xQueueSend(_emptyBufferQ, &buffer, portMAX_DELAY);
 		lines_written += LINES_PER_BUFFER;
+		if (lines_written == LINES_TO_SAVE / 2)
+		{
+			dump(&stream_file, &OV7670_FLAG, 8);
+			blink_led();
+		}
 		if (lines_written == LINES_TO_SAVE)
 		{
 			dump(&stream_file, &OV7670_FLAG, 8);
@@ -123,6 +128,7 @@ again:
 
 
 	size_t buff_cnt = 0;
+	int bytes_counter = -1;
 	while (buff_cnt*LINES_PER_BUFFER < LINES_TO_SAVE)
 	{
 		// ждем, пока в FIFO появится достаточно данных
@@ -131,12 +137,21 @@ again:
 		// Если в фифо уже накопилось данных хотябы на один буфер
 		// начинаем выгрузку на SD карту
 		{
+			bytes_counter++;
 			uint8_t * buffer;
-			xQueueReceive(_emptyBufferQ, &buffer, portMAX_DELAY);
-			camera_fifo_read(buffer, BUFFER_SIZE);
-			xQueueSend(_fullBufferQ, &buffer, portMAX_DELAY);
+			if (bytes_counter == 0)
+			{
 
-			buff_cnt++;
+				xQueueReceive(_emptyBufferQ, &buffer, portMAX_DELAY);
+				camera_fifo_read(buffer, BUFFER_SIZE);
+				xQueueSend(_fullBufferQ, &buffer, portMAX_DELAY);
+				buff_cnt++;
+			}
+			if (bytes_counter == 1)
+			{
+				camera_fifo_read(buffer, BUFFER_SIZE);
+				bytes_counter = -1;
+			}
 		}
 	}
 
