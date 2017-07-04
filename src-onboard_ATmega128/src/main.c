@@ -179,13 +179,14 @@ int main()
 
 	//*****УСТАНОВКА НАЧАЛЬНЫХ ПАРАМЕТРОВ*****//
 	set_zero_pressure();	//устанавливаем нулевое давление
-
 	set_ISC_offset();
-	for (int i = 0; i < 10; i++)
+	for (int i = 0; i < 20; i++)
 	{
+
 		uint16_t marker = 0xF7F7;
 		rscs_uart_write(uart0, &marker, sizeof(marker));
 		rscs_uart_write(uart0, &STATE.f_XYZ, sizeof(STATE.f_XYZ));
+		rscs_uart_write(uart0, &STATE.pressure, sizeof(STATE.pressure));
 	}
 
 
@@ -211,17 +212,13 @@ int main()
 	}*/
 
 
-	int p_number = 0;
 	while(1)
 	{
 		//*****ИНДИКАЦИЯ РАБОТЫ УСТРОЙСТВ*****//
 		blink_led();
 
-		//*****СЧЕТЧИК ИТЕРРАЦИЙ*****//
-		p_number++;
-
 		//*****ОПРОС ДАТЧИКОВ*****//
-		//pull_recon_data();
+		pull_recon_data();
 
 		//set_magn_dir();
 		//construct_trajectory();
@@ -243,30 +240,6 @@ int main()
 		//TIMES.transmition = rscs_time_get() - TIMES.total;
 		//TIMES.total = TIMES.total + TIMES.transmition;
 
-		if (p_number % 1 == 0)
-		{
-			//printf("c_RSC: %f, %f, %f\n", STATE.cRelatedXYZ[0], STATE.cRelatedXYZ[1], STATE.cRelatedXYZ[2]);
-			//printf("g_RSC: %f, %f, %f\n", STATE.gRelatedXYZ[0], STATE.gRelatedXYZ[1], STATE.gRelatedXYZ[2]);
-			//printf("g_ISC: %f, %f, %f\n\n", STATE.w_XYZ[0], STATE.w_XYZ[1], STATE.w_XYZ[2]);
-			//printf("a_RSC: %f, %f, %f\n", STATE.aRelatedXYZ[0], STATE.aRelatedXYZ[1], STATE.aRelatedXYZ[2]);
-			//printf("a_ISC: %f, %f, %f\n", STATE.a_XYZ[0], STATE.a_XYZ[1], STATE.a_XYZ[2]);
-			//printf_rotation_matrix();
-			//printf_rotation_matrix_string();
-			/*
-			printf("Zero = %ld\n", TIMES.zero);
-			printf("Imu = %ld\n", TIMES.imu);
-			printf("Filters = %ld\n", TIMES.filters);
-			printf("Bmp280 = %ld\n", TIMES.bmp280);
-			printf("Bs18b20 = %ld\n", TIMES.ds18b20);
-			printf("Adxl345 = %ld\n", TIMES.adxl345);
-			printf("Transmition = %ld\n", TIMES.transmition);
-			printf("Total = %ld\n\n", TIMES.total - TIMES.zero);
-			printf("Cycle = %ld\n\n", rscs_time_get() - TIMES.zero);
- 	 	 	*/
-			//printf("Determinant = %f\n", getDeterminant(*STATE.f_XYZ));
-			//printf("TIME: %f c\n\n", (float)STATE.Time / 1000);
-			//printf_state();
-		}
 	}
 
 	return 0;

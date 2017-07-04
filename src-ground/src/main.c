@@ -142,6 +142,8 @@ void printf_first_string_state(FILE * file_)
 	fprintf(file_, "Rotation Matrix\n");
 }
 
+float G_vector;
+
 
 int main()
 {
@@ -178,10 +180,68 @@ int main()
 	printf_first_string_state(f_ready_csv);
 
 	int i;
+	int counter = 0;
 	for (i = 0; i < pointer; i++)
 	{
 		if (pack_uint[i] == 0xFA && pack_uint[i + 1] == 0xFA)	//если находит маркер структуры (0xFF), начинает анализ пакета
 		{
+			package * pack = (package*)(pack_uint + i);
+			if (check_package(pack))
+			{
+				recalc_accel((int16_t*)(pack->aXYZ), DEVICE_STATE.aRelatedXYZ);
+				recalc_gyro((int16_t*)(pack->gXYZ), DEVICE_STATE.gRelatedXYZ);
+				recalc_compass((int16_t*)(pack->cXYZ), DEVICE_STATE.cRelatedXYZ);
+
+				//Фильтрация шума
+				apply_NoiseFilter(DEVICE_STATE.gRelatedXYZ, GYRO_NOISE, 3);
+				apply_NoiseFilter(DEVICE_STATE.aRelatedXYZ, ACCEL_NOISE, 3);
+
+				//определение угловых скоростей (в ИСК)
+				RSC_to_ISC_recalc(DEVICE_STATE.gRelatedXYZ, DEVICE_STATE.w_XYZ);
+
+				solveByRungeKutta((float)(DEVICE_STATE.Time - DEVICE_STATE.previousTime) / 1000, DEVICE_STATE.f_XYZ_prev[0], DEVICE_STATE.f_XYZ[0]);
+				solveByRungeKutta((float)(DEVICE_STATE.Time - DEVICE_STATE.previousTime) / 1000, DEVICE_STATE.f_XYZ_prev[1], DEVICE_STATE.f_XYZ[1]);
+
+				//находим третью строку матрицы поворота из условия ортогональности векторов
+				iauPxp(DEVICE_STATE.f_XYZ[0], DEVICE_STATE.f_XYZ[1], DEVICE_STATE.f_XYZ[2]);
+
+				set_cos_to_1(&DEVICE_STATE.f_XYZ[0][0]);
+				set_cos_to_1(&DEVICE_STATE.f_XYZ[0][1]);
+				set_cos_to_1(&DEVICE_STATE.f_XYZ[0][2]);
+				set_cos_to_1(&DEVICE_STATE.f_XYZ[1][0]);
+				set_cos_to_1(&DEVICE_STATE.f_XYZ[1][1]);
+				set_cos_to_1(&DEVICE_STATE.f_XYZ[1][2]);
+				set_cos_to_1(&DEVICE_STATE.f_XYZ[2][0]);
+				set_cos_to_1(&DEVICE_STATE.f_XYZ[2][1]);
+				set_cos_to_1(&DEVICE_STATE.f_XYZ[2][2]);
+
+				//определение ускорений
+				RSC_to_ISC_recalc(DEVICE_STATE.aRelatedXYZ, DEVICE_STATE.a_XYZ);
+
+				G_vector += iauPm(DEVICE_STATE.a_XYZ);
+				counter++;
+			}
+		}
+	}
+	G_vector = G_vector / counter;
+	printf("Counter = %d\n", counter);
+	printf("G_ = %f\n", G_vector);
+	bool matrix_set = 0;
+	for (i = 0; i < pointer; i++)
+	{
+		if ((pack_uint[i] == 0xFE && pack_uint[i + 1] == 0xFE) && (matrix_set == 0))
+		{
+			first_dev_matrix * device_first_matrix = (first_dev_matrix*)(pack_uint + i + 2);
+			for (int i = 0; i < 3; i++)
+				for (int j = 0; j < 3; j++)
+				{
+					DEVICE_STATE.f_XYZ[i][j] = device_first_matrix->f_XYZ[i][j];
+					DEVICE_STATE.f_XYZ_prev[i][j] = device_first_matrix->f_XYZ[i][j];
+				}
+		}
+		if (pack_uint[i] == 0xFA && pack_uint[i + 1] == 0xFA)	//если находит маркер структуры (0xFF), начинает анализ пакета
+		{
+			matrix_set = 1;
 			package * pack = (package*)(pack_uint + i);
 			if (check_package(pack))
 			{
@@ -213,7 +273,7 @@ int main()
 				apply_NoiseFilter(DEVICE_STATE.gRelatedXYZ, GYRO_NOISE, 3);
 				apply_NoiseFilter(DEVICE_STATE.aRelatedXYZ, ACCEL_NOISE, 3);
 
-				construct_trajectory();
+				construct_trajectory(G_vector);
 				printf_state(f_ready_csv, pack->number);
 				/*---------------------------------------------------------------------*/
 
@@ -225,8 +285,6 @@ int main()
 			else
 				printf("Пакет не прошел проверку \n");
 		}
-
-
 	}
 
 

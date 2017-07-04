@@ -68,6 +68,12 @@ typedef struct
 
 }state;
 
+typedef struct
+{
+	float f_XYZ[3][3];
+}first_dev_matrix;
+
+
 /*=================================================================================*/
 /*=================================================================================*/
 
@@ -104,8 +110,10 @@ void pull_recon_data();
 //ОПРЕДЕЛЯЕТ ВЫСОТУ ПО ДАВЛЕНИЮ
 void calculate_height();
 
+void set_cos_to_1(float * cosalpha);
+
 //РАССЧИТЫВАЕТ МАТРИЦУ ПОВОРОТА, УГЛОВЫЕ СКОРОСТИ, СКОРОСТИ, УСКОРЕНИЯ И ПЕРЕМЕЩЕНИЯ В ИСК И ЗАПИСЫВАЕТ ИХ В STATE
-void construct_trajectory();
+void construct_trajectory(float G_);
 
 void apply_KalmanFilter(float * sensor_data, const float * sensor_data_prev, float Kalman_gain, int data_array_size);
 

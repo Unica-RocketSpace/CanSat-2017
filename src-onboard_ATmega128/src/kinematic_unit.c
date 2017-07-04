@@ -443,7 +443,8 @@ void construct_trajectory()
 	//printf("%f,   %f,   %f\n", STATE.f_XYZ[1][0], STATE.f_XYZ[1][1], STATE.f_XYZ[1][2]);
 	//printf("%f,   %f,   %f\n\n", STATE.f_XYZ[2][0], STATE.f_XYZ[2][1], STATE.f_XYZ[2][2]);
 
-	//определение ускорений	RSC_to_ISC_recalc(STATE.aRelatedXYZ, STATE.a_XYZ);
+	//определение ускорений
+	RSC_to_ISC_recalc(STATE.aRelatedXYZ, STATE.a_XYZ);
 	//STATE.a_XYZ[2] = STATE.a_XYZ[2] - G_VECT;
 
 	//определение скоростей

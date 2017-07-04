@@ -239,7 +239,7 @@ void set_cos_to_1(float * cosalpha)
 
 }
 
-void construct_trajectory()
+void construct_trajectory(float G_)
 {
 
 	float dt = (float)(DEVICE_STATE.Time - DEVICE_STATE.previousTime) / 1000;
@@ -264,7 +264,8 @@ void construct_trajectory()
 	set_cos_to_1(&DEVICE_STATE.f_XYZ[2][2]);
 
 	//определение ускорений	RSC_to_ISC_recalc(DEVICE_STATE.aRelatedXYZ, DEVICE_STATE.a_XYZ);
-	DEVICE_STATE.a_XYZ[2] = DEVICE_STATE.a_XYZ[2] - G_VECT;
+	//DEVICE_STATE.a_XYZ[2] = DEVICE_STATE.a_XYZ[2] - G_VECT;
+	DEVICE_STATE.a_XYZ[2] = DEVICE_STATE.a_XYZ[2] - G_;
 
 	//определение скоростей
 	DEVICE_STATE.v_XYZ[0] = DEVICE_STATE.v_XYZ[0] + (DEVICE_STATE.a_XYZ_prev[0] + DEVICE_STATE.a_XYZ[0]) * dt / 2;
