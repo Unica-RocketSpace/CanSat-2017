@@ -20,6 +20,7 @@ void kinematicInit()
 	STATE_.aALT_XYZ[0]    = 0;	STATE_.aALT_XYZ[1]    = 0;	STATE_.aALT_XYZ[2]    = 0;
 	STATE_.gRelatedXYZ[0] = 0;	STATE_.gRelatedXYZ[1] = 0;	STATE_.gRelatedXYZ[2] = 0;
 	STATE_.cRelatedXYZ[0] = 0;	STATE_.cRelatedXYZ[1] = 0;	STATE_.cRelatedXYZ[2] = 0;
+	STATE_.cRelatedXYZ_prev[0] = 0;	STATE_.cRelatedXYZ_prev[1] = 0;	STATE_.cRelatedXYZ_prev[2] = 0;
 
 	STATE_.height = 0;
 	STATE_.zero_pressure = 0;
@@ -96,29 +97,14 @@ void RSC_to_ISC_recalc(float * RSC_vect, float * ISC_vect)
 
 }
 */
-/*
+
 void set_magn_dir()
 {
-	rscs_e error1 = 1;
-	int16_t compass_raw_XYZ[3];
-	float compass_XYZ[3];
 	float dummy1;
-	float B_unit_vect[3];
 
-	MPU9255_read_compass(compass_raw_XYZ);
-	MPU9255_recalc_compass(compass_raw_XYZ, DEVICE_STATE.cRelatedXYZ);
-
-	while (error1 != 0)
-	{
-		//iauPn(compass_XYZ, &dummy1, B_unit_vect);
-
-		RSC_to_ISC_recalc(B_unit_vect, DEVICE_STATE.B_XYZ);
-		iauPn(DEVICE_STATE.B_XYZ, &dummy1, DEVICE_STATE.B_XYZ);
-
-		error1 = MPU9255_read_compass(compass_raw_XYZ);
-		MPU9255_recalc_compass(compass_raw_XYZ, DEVICE_STATE.cRelatedXYZ);
-	}
-}*/
+	RSC_to_ISC_recalc(DEVICE_STATE.cRelatedXYZ, DEVICE_STATE.B_XYZ);
+	iauPn(DEVICE_STATE.B_XYZ, &dummy1, DEVICE_STATE.B_XYZ);
+}
 
 void recalc_ISC()
 {
@@ -133,7 +119,7 @@ void recalc_ISC()
 
 	RSC_to_ISC_recalc(compass_XYZ, B_vect);		//пересчет вектора магнитного поля в ИСК
 	iauPn(B_vect, &dummy1, B_unit_vect);
-	iauPxp(DEVICE_STATE.B_XYZ, B_unit_vect, C_vect);	//создаем ось вращения С, перпендикулярную плоскости (M,M1)
+	iauPxp(DEVICE_STATE.B_XYZ, B_unit_vect, C_vect);	//создаем ось вращения С, перпендикулярную плоскости (B,B_new)
 	iauPn(C_vect, &dummy1, C_unit_vect);		//нормируем вектор С
 
 	iauPxp(C_unit_vect, DEVICE_STATE.B_XYZ, A_unit_vect);	//находим третий вектор (А) системы координат BАС
@@ -161,6 +147,10 @@ void recalc_ISC()
 
 	//переписываем DEVICE_STATE.f_XYZ
 	iauRxr(T, DEVICE_STATE.f_XYZ, DEVICE_STATE.f_XYZ);
+	for (int i = 0; i < 3; i++)
+	{
+		DEVICE_STATE.B_XYZ[i] = B_unit_vect[i];		//переписываем вектор B
+	}
 }
 /*
 void set_zero_pressure()
@@ -285,6 +275,7 @@ void construct_trajectory(float G_)
 		DEVICE_STATE.w_XYZ_prev[i] = DEVICE_STATE.w_XYZ[i];
 		DEVICE_STATE.aRelatedXYZ_prev[i] = DEVICE_STATE.aRelatedXYZ[i];
 		DEVICE_STATE.gRelatedXYZ_prev[i] = DEVICE_STATE.gRelatedXYZ[i];
+		DEVICE_STATE.cRelatedXYZ_prev[i] = DEVICE_STATE.cRelatedXYZ[i];
 		for (int j = 0; j < 3; j++)
 		{
 			DEVICE_STATE.f_XYZ_prev[i][j] = DEVICE_STATE.f_XYZ[i][j];

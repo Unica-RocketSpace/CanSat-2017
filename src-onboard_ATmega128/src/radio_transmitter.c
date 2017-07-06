@@ -32,7 +32,7 @@ void transmition_init()
 
 	uart0 = rscs_uart_init(RSCS_UART_ID_UART0,
 				RSCS_UART_FLAG_ENABLE_TX /*| RSCS_UART_FLAG_BUFFER_TX*/);
-	rscs_uart_set_baudrate(uart0, 37400);		//было 9150	//37400
+	rscs_uart_set_baudrate(uart0, 35700);		//было 9150	//37400
 	rscs_uart_set_character_size(uart0, 8);
 	rscs_uart_set_parity(uart0, RSCS_UART_PARITY_NONE);
 	rscs_uart_set_stop_bits(uart0, RSCS_UART_STOP_BITS_ONE);

@@ -24,7 +24,7 @@
 #define MARKER_SIZE		4
 
 
-char mode[10];
+char mode[] = "mono";
 const char color_mode[] = "color";
 const char mono_mode[] = "mono";
 int video_number;
@@ -206,7 +206,7 @@ void set_mode_()
 
 void set_number_()
 {
-	printf("ВВЕДИТЕ РЕЖИМ ВЫБОРА НОМЕРА\n");
+	/*printf("ВВЕДИТЕ РЕЖИМ ВЫБОРА НОМЕРА\n");
 	scanf("%s", numberMode);
 
 	if (!strcmp(numberMode, numberMode_number))
@@ -220,7 +220,9 @@ void set_number_()
 	{
 		printf("choosing_number_error\n");
 		set_number_();
-	}
+	}*/
+	printf("ВВЕДИТЕ НОМЕР ВИДЕО\n");
+	scanf("%d", &video_number);
 
 }
 
@@ -231,20 +233,20 @@ int main()
 	//const char path_folder[] = "/home/snork/Desktop/unica/";
 	const char	extension[]		= ".ppm";
 
-	//char default_path[] = "/media/developer/SDHC/VIDEO-";
-	char default_path[] = "/media/developer/4D2E-16F9/VIDEO-";
+	char default_path[] = "/home/developer/git/CanSat-2017/src-ground/video/VIDEO-";
+	//char default_path[] = "/media/developer/4D2E-16F9/VIDEO-";
 	//const char default_path[] = "/run/media/snork/4D2E-16F9/VIDEO-";
 	char video_extension[] = ".BIN";
 	char path_stream[] = "";
 
 
-	set_mode_();
+/*	set_mode_();
 
 number_l:
 	set_number_();
 	if (video_number >= 0)		//если введен номер видео
 	{
-		/*создаем путь к видео, зная номер файла*/
+		/ * оздаем путь к видео, зная номер файла* /
 		char path[strlen(default_path) + strlen(video_extension) + get_sizeof_number(video_number)];
 		sprintf(path, "%s%d%s", default_path, video_number, video_extension);
 		//копируем путь в path_stream
@@ -271,7 +273,7 @@ number_l:
 				printf("error on opening file #%d\n", current_number);
 				printf("number of correct file: %d\n", current_number - 1);
 				video_number = current_number - 1;
-				/*создаем путь к видео, зная номер файла*/
+				/ *создаем путь к видео, зная номер файла* /
 				char path[strlen(default_path) + strlen(video_extension) + get_sizeof_number(video_number)];
 				sprintf(path, "%s%d%s", default_path, video_number, video_extension);
 				//копируем путь в path_stream
@@ -284,10 +286,14 @@ number_l:
 
 	}
 	else
-		goto number_l;
+		goto number_l;*/
+	number_l:
+	set_number_();
 
-	printf("%s\n", path_stream);	//знаем путь из вышестоящей конструкции
-
+	char path[strlen(default_path) + strlen(video_extension) + get_sizeof_number(video_number)];
+	sprintf(path, "%s%d%s", default_path, video_number, video_extension);
+	sprintf(path_stream, "%s", path);
+	printf("%s\n", path_stream);
 
 	//СОЗДАЕМ ФАЙЛ С ВИДЕОПОТОКОМ
 	FILE * file_stream = fopen(path_stream, "r");		//файл с видеопотоком

@@ -89,10 +89,18 @@ void printf_state(FILE * file_, long package_number)
 {
 	fprintf(file_, "%ld, ", package_number);
 	fprintf(file_, "%f, ", (float)DEVICE_STATE.Time / 1000);
+	fprintf(file_, "%d, ", DEVICE_STATE.state);
+	fprintf(file_, "%f, ", DEVICE_STATE.pressure);
+	fprintf(file_, "%f, ", DEVICE_STATE.temp_ds18b20);
+	fprintf(file_, "%f, ", DEVICE_STATE.temp_bmp280);
+	fprintf(file_, "%f, %f, %f, ", DEVICE_STATE.aALT_XYZ[0], DEVICE_STATE.aALT_XYZ[1], DEVICE_STATE.aALT_XYZ[2]);
+	fprintf(file_, "%f, ", iauPm(DEVICE_STATE.aALT_XYZ));
 	fprintf(file_, "%f, %f, %f, ", DEVICE_STATE.aRelatedXYZ[0], DEVICE_STATE.aRelatedXYZ[1], DEVICE_STATE.aRelatedXYZ[2]);
 	fprintf(file_, "%f, ", iauPm(DEVICE_STATE.aRelatedXYZ));
 	fprintf(file_, "%f, %f, %f, ", DEVICE_STATE.gRelatedXYZ[0], DEVICE_STATE.gRelatedXYZ[1], DEVICE_STATE.gRelatedXYZ[2]);
 	fprintf(file_, "%f, ", iauPm(DEVICE_STATE.gRelatedXYZ));
+	fprintf(file_, "%f, %f, %f, ", DEVICE_STATE.cRelatedXYZ[0], DEVICE_STATE.cRelatedXYZ[1], DEVICE_STATE.cRelatedXYZ[2]);
+	fprintf(file_, "%f, ", iauPm(DEVICE_STATE.cRelatedXYZ));
 	fprintf(file_, "%f, %f, %f, ", DEVICE_STATE.a_XYZ[0], DEVICE_STATE.a_XYZ[1], DEVICE_STATE.a_XYZ[2]);
 	fprintf(file_, "%f, ", iauPm(DEVICE_STATE.a_XYZ));
 	fprintf(file_, "%f, %f, %f, ", DEVICE_STATE.v_XYZ[0], DEVICE_STATE.v_XYZ[1], DEVICE_STATE.v_XYZ[2]);
@@ -111,48 +119,74 @@ void printf_state(FILE * file_, long package_number)
 													DEVICE_STATE.f_XYZ[2][1],
 													DEVICE_STATE.f_XYZ[2][2]);
 }
+
+void printf_rotation_matrix()
+{
+	printf("%f, %f, %f, %f, %f, %f, %f, %f, %f\n",	DEVICE_STATE.f_XYZ[0][0],
+														DEVICE_STATE.f_XYZ[0][1],
+														DEVICE_STATE.f_XYZ[0][2],
+														DEVICE_STATE.f_XYZ[1][0],
+														DEVICE_STATE.f_XYZ[1][1],
+														DEVICE_STATE.f_XYZ[1][2],
+														DEVICE_STATE.f_XYZ[2][0],
+														DEVICE_STATE.f_XYZ[2][1],
+														DEVICE_STATE.f_XYZ[2][2]);
+}
+
 void printf_first_string_state(FILE * file_)
 {
-	fprintf(file_, "package, ");
-	fprintf(file_, "time, ");
-	fprintf(file_, "Accelerometer-X, ");
+	fprintf(file_, "package, ");					//0
+	fprintf(file_, "time, ");						//1
+	fprintf(file_, "state, ");						//2
+	fprintf(file_, "pressure, ");					//3
+	fprintf(file_, "temperature_ds18b20, ");		//4
+	fprintf(file_, "temperature_bmp280, ");			//5
+	fprintf(file_, "adxl345_X, ");					//6
+	fprintf(file_, "adxl345_Y, ");
+	fprintf(file_, "adxl345_Z, ");
+	fprintf(file_, "adxl345, ");
+	fprintf(file_, "Accelerometer-X, ");			//10
 	fprintf(file_, "Accelerometer-Y, ");
 	fprintf(file_, "Accelerometer-Z, ");
 	fprintf(file_, "Accelerometer, ");
-	fprintf(file_, "Gyroscope-X, ");
+	fprintf(file_, "Gyroscope-X, ");				//14
 	fprintf(file_, "Gyroscope-Y, ");
 	fprintf(file_, "Gyroscope-Z, ");
 	fprintf(file_, "Gyroscope, ");
-	fprintf(file_, "Accelerations-X, ");
+	fprintf(file_, "Compass-X, ");					//18
+	fprintf(file_, "Compass-Y, ");
+	fprintf(file_, "Compass-Z, ");
+	fprintf(file_, "Compass, ");
+	fprintf(file_, "Accelerations-X, ");			//22
 	fprintf(file_, "Accelerations-Y, ");
 	fprintf(file_, "Accelerations-Z, ");
 	fprintf(file_, "Accelerations, ");
-	fprintf(file_, "Velocities-X, ");
+	fprintf(file_, "Velocities-X, ");				//26
 	fprintf(file_, "Velocities-Y, ");
 	fprintf(file_, "Velocities-Z, ");
 	fprintf(file_, "Velocities, ");
-	fprintf(file_, "Translations-X, ");
+	fprintf(file_, "Translations-X, ");				//30
 	fprintf(file_, "Translations-Y, ");
 	fprintf(file_, "Translations-Z, ");
 	fprintf(file_, "Translations, ");
-	fprintf(file_, "Angle velocities-X, ");
+	fprintf(file_, "Angle velocities-X, ");			//34
 	fprintf(file_, "Angle velocities-Y, ");
 	fprintf(file_, "Angle velocities-Z, ");
 	fprintf(file_, "Angle velocities, ");
-	fprintf(file_, "Rotation Matrix\n");
+	fprintf(file_, "Rotation Matrix\n");			//38
 }
 
-float G_vector;
+float G_vector = 0;
 
 
 int main()
 {
-	const char fake_package_path[] = "/home/developer/git/CanSat-2017/src-ground/RAW.bin";
+	const char fake_package_path[] = "/home/developer/git/CanSat-2017/src-ground/Unica_TM_orgs.bin";
 	//make_fake_data(fake_package_path);
 
 	FILE * f_raw = fopen(fake_package_path, "rb");		//файл с сырыми значениями
-	FILE * f_ready_txt = fopen("/home/developer/git/CanSat-2017/src-ground/YouCanReadThis_DATA.txt","w");		//файл с преобразованными значениями
-	FILE * f_ready_csv = fopen("/home/developer/git/CanSat-2017/src-ground/ready_to_plot.csv","w");
+	FILE * f_ready_txt = fopen("/home/developer/git/CanSat-2017/src-ground/You.txt","w");		//файл с преобразованными значениями
+	FILE * f_ready_csv = fopen("/home/developer/git/CanSat-2017/src-ground/Unica_orgs_translations.csv","w");
 
 	if (f_raw == NULL)
 	{
@@ -179,72 +213,49 @@ int main()
 	kinematicInit();
 	printf_first_string_state(f_ready_csv);
 
-	int i;
-	int counter = 0;
-	for (i = 0; i < pointer; i++)
+	int cnt_ = 0;
+	for (int i = 0; i < pointer; i++)
 	{
 		if (pack_uint[i] == 0xFA && pack_uint[i + 1] == 0xFA)	//если находит маркер структуры (0xFF), начинает анализ пакета
 		{
 			package * pack = (package*)(pack_uint + i);
 			if (check_package(pack))
 			{
-				recalc_accel((int16_t*)(pack->aXYZ), DEVICE_STATE.aRelatedXYZ);
-				recalc_gyro((int16_t*)(pack->gXYZ), DEVICE_STATE.gRelatedXYZ);
-				recalc_compass((int16_t*)(pack->cXYZ), DEVICE_STATE.cRelatedXYZ);
-
-				//Фильтрация шума
-				apply_NoiseFilter(DEVICE_STATE.gRelatedXYZ, GYRO_NOISE, 3);
-				apply_NoiseFilter(DEVICE_STATE.aRelatedXYZ, ACCEL_NOISE, 3);
-
-				//определение угловых скоростей (в ИСК)
-				RSC_to_ISC_recalc(DEVICE_STATE.gRelatedXYZ, DEVICE_STATE.w_XYZ);
-
-				solveByRungeKutta((float)(DEVICE_STATE.Time - DEVICE_STATE.previousTime) / 1000, DEVICE_STATE.f_XYZ_prev[0], DEVICE_STATE.f_XYZ[0]);
-				solveByRungeKutta((float)(DEVICE_STATE.Time - DEVICE_STATE.previousTime) / 1000, DEVICE_STATE.f_XYZ_prev[1], DEVICE_STATE.f_XYZ[1]);
-
-				//находим третью строку матрицы поворота из условия ортогональности векторов
-				iauPxp(DEVICE_STATE.f_XYZ[0], DEVICE_STATE.f_XYZ[1], DEVICE_STATE.f_XYZ[2]);
-
-				set_cos_to_1(&DEVICE_STATE.f_XYZ[0][0]);
-				set_cos_to_1(&DEVICE_STATE.f_XYZ[0][1]);
-				set_cos_to_1(&DEVICE_STATE.f_XYZ[0][2]);
-				set_cos_to_1(&DEVICE_STATE.f_XYZ[1][0]);
-				set_cos_to_1(&DEVICE_STATE.f_XYZ[1][1]);
-				set_cos_to_1(&DEVICE_STATE.f_XYZ[1][2]);
-				set_cos_to_1(&DEVICE_STATE.f_XYZ[2][0]);
-				set_cos_to_1(&DEVICE_STATE.f_XYZ[2][1]);
-				set_cos_to_1(&DEVICE_STATE.f_XYZ[2][2]);
-
-				//определение ускорений
-				RSC_to_ISC_recalc(DEVICE_STATE.aRelatedXYZ, DEVICE_STATE.a_XYZ);
-
-				G_vector += iauPm(DEVICE_STATE.a_XYZ);
-				counter++;
+				recalc_accel((int16_t*)&pack->aXYZ, DEVICE_STATE.aRelatedXYZ);
+				G_vector += iauPm(DEVICE_STATE.aRelatedXYZ);
+				printf("G_ = %f\n", G_vector);
+				cnt_++;
+				printf("%d\n", cnt_);
+				if (cnt_ == 5)
+					break;
 			}
 		}
 	}
-	G_vector = G_vector / counter;
-	printf("Counter = %d\n", counter);
+	kinematicInit();
+	G_vector = G_vector / cnt_;
 	printf("G_ = %f\n", G_vector);
-	bool matrix_set = 0;
-	for (i = 0; i < pointer; i++)
+	//int matrix_set = 0;
+	for (int i = 0; i < pointer; i++)
 	{
-		if ((pack_uint[i] == 0xFE && pack_uint[i + 1] == 0xFE) && (matrix_set == 0))
+		/*if ((pack_uint[i] == 0xF7 && pack_uint[i + 1] == 0xF7) && (matrix_set <= 5))
 		{
+			kinematicInit();
 			first_dev_matrix * device_first_matrix = (first_dev_matrix*)(pack_uint + i + 2);
 			for (int i = 0; i < 3; i++)
 				for (int j = 0; j < 3; j++)
 				{
 					DEVICE_STATE.f_XYZ[i][j] = device_first_matrix->f_XYZ[i][j];
 					DEVICE_STATE.f_XYZ_prev[i][j] = device_first_matrix->f_XYZ[i][j];
+					matrix_set += 1;
 				}
-		}
+		}*/
 		if (pack_uint[i] == 0xFA && pack_uint[i + 1] == 0xFA)	//если находит маркер структуры (0xFF), начинает анализ пакета
 		{
-			matrix_set = 1;
 			package * pack = (package*)(pack_uint + i);
 			if (check_package(pack))
 			{
+				if (iauPm(DEVICE_STATE.cRelatedXYZ) == 0)
+					set_magn_dir();
 				/*global_data DATA =
 				{
 						.pressure = recalc_bmp280Pressure(pack->pressure),
@@ -264,16 +275,21 @@ int main()
 				DEVICE_STATE.temp_bmp280 = recalc_bmp280Temp(pack->temp_bmp280);
 				DEVICE_STATE.temp_ds18b20 = recalc_ds18b20Temp(pack->temp_ds18b20);
 				DEVICE_STATE.Time = pack->time;
+				DEVICE_STATE.state = pack->state;
 				recalc_adxl345(pack->a_adxl345, DEVICE_STATE.aALT_XYZ);
 				recalc_accel((int16_t*)(pack->aXYZ), DEVICE_STATE.aRelatedXYZ);
 				recalc_gyro((int16_t*)(pack->gXYZ), DEVICE_STATE.gRelatedXYZ);
 				recalc_compass((int16_t*)(pack->cXYZ), DEVICE_STATE.cRelatedXYZ);
 
 				//Фильтрация шума
-				apply_NoiseFilter(DEVICE_STATE.gRelatedXYZ, GYRO_NOISE, 3);
-				apply_NoiseFilter(DEVICE_STATE.aRelatedXYZ, ACCEL_NOISE, 3);
+				//apply_NoiseFilter(DEVICE_STATE.gRelatedXYZ, GYRO_NOISE, 3);
+				//apply_NoiseFilter(DEVICE_STATE.aRelatedXYZ, ACCEL_NOISE, 3);
 
 				construct_trajectory(G_vector);
+				if (DEVICE_STATE.cRelatedXYZ != DEVICE_STATE.cRelatedXYZ_prev)
+				{
+					recalc_ISC();
+				}
 				printf_state(f_ready_csv, pack->number);
 				/*---------------------------------------------------------------------*/
 

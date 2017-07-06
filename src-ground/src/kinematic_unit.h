@@ -38,7 +38,8 @@ typedef struct
 	float gRelatedXYZ[3];	//угловые скорости в degps (в ССК)
 	float gRelatedXYZ_prev[3];
 	float aRelatedXYZ_prev[3];
-	float cRelatedXYZ[3];	//косинусы углов вектора магнитного поля с осями ССК
+	float cRelatedXYZ[3];		//косинусы углов вектора магнитного поля с осями ССК
+	float cRelatedXYZ_prev[3];
 	float height;
 	float zero_pressure;
 	float pressure;

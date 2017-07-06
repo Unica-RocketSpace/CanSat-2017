@@ -177,17 +177,19 @@ int main()
 	STATE.state = 0;		//обнуляем состояние аппарата (на всякий случай)
 	extiInit();
 
+	/*while(1)
+		printf("error");*/
 	//*****УСТАНОВКА НАЧАЛЬНЫХ ПАРАМЕТРОВ*****//
 	set_zero_pressure();	//устанавливаем нулевое давление
-	set_ISC_offset();
-	for (int i = 0; i < 20; i++)
+	//set_ISC_offset();
+	/*for (int i = 0; i < 20; i++)
 	{
 
 		uint16_t marker = 0xF7F7;
 		rscs_uart_write(uart0, &marker, sizeof(marker));
 		rscs_uart_write(uart0, &STATE.f_XYZ, sizeof(STATE.f_XYZ));
 		rscs_uart_write(uart0, &STATE.pressure, sizeof(STATE.pressure));
-	}
+	}*/
 
 
 	//*****ОЖИДАНИЕ РАСКРЫТИЯ ПАРАШЮТА*****//
